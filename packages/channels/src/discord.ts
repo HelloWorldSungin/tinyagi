@@ -194,6 +194,28 @@ function pairingMessage(code: string): string {
     ].join('\n');
 }
 
+// Load guild_channels mapping from settings
+function getGuildChannels(): Record<string, string> {
+    try {
+        const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+        const settings = JSON.parse(settingsData);
+        return settings.channels?.discord?.guild_channels || {};
+    } catch {
+        return {};
+    }
+}
+
+// Build a thread name from a message (max 100 chars, Discord limit)
+function buildThreadName(messageText: string, username: string): string {
+    if (!messageText || !messageText.trim()) {
+        return `Attachment from ${username}`;
+    }
+    // Strip leading @agent prefix for cleaner names
+    const cleaned = messageText.replace(/^@\S+\s*/, '').trim();
+    const name = cleaned || messageText.trim();
+    return name.length > 90 ? name.substring(0, 90) + '...' : name;
+}
+
 // Initialize Discord client
 const client = new Client({
     intents: [
