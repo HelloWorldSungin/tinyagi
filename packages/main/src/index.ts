@@ -22,6 +22,10 @@ import {
     closeQueueDb, queueEvents,
     insertAgentMessage,
     startScheduler, stopScheduler,
+    initPipelineDb, createPipelineRun, getActivePipelineRun,
+    failPipelineRun, getPipelineRun,
+    recoverRunningPipelines, enqueueMessage, genId,
+    hasPendingPipelineMessage,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -47,6 +51,7 @@ async function processMessage(dbMsg: any): Promise<void> {
         messageId: dbMsg.message_id,
         agent: dbMsg.agent ?? undefined,
         fromAgent: dbMsg.from_agent ?? undefined,
+        pipelineRunId: dbMsg.pipeline_run_id ?? undefined,
     };
 
     const { channel, sender, message: rawMessage, messageId, agent: preRoutedAgent } = data;
@@ -82,6 +87,47 @@ async function processMessage(dbMsg: any): Promise<void> {
         agentId = Object.keys(agents)[0];
     }
 
+    // ── Pipeline detection ───────────────────────────────────────────────
+    let pipelineRunId = data.pipelineRunId;
+
+    if (!pipelineRunId) {
+        // Check if this agent belongs to a pipeline-mode team
+        for (const [teamId, team] of Object.entries(teams)) {
+            if (team.mode === 'pipeline' && team.pipeline && team.agents.includes(agentId)) {
+                // Validate config
+                if (team.pipeline.some(pid => !team.agents.includes(pid))) {
+                    log('ERROR', `Pipeline config for team '${teamId}' references unknown agents`);
+                    await sendDirectResponse(
+                        `Pipeline configuration error: pipeline references agents not in the team.`,
+                        { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId: teamId },
+                    );
+                    return;
+                }
+
+                // Check for active run
+                const activeRun = getActivePipelineRun(teamId);
+                if (activeRun) {
+                    log('WARN', `Pipeline already running for team '${teamId}'`);
+                    await sendDirectResponse(
+                        `Pipeline already running for @${teamId}. Use @${teamId} /status to check progress.`,
+                        { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId: teamId },
+                    );
+                    return;
+                }
+
+                // Create pipeline run — first agent in pipeline array always receives
+                pipelineRunId = createPipelineRun(
+                    teamId, channel, sender, data.senderId ?? undefined,
+                    messageId, rawMessage, team.pipeline,
+                );
+                agentId = team.pipeline[0];
+                isTeamRouted = true;
+                log('INFO', `Pipeline ${pipelineRunId} created for team '${teamId}' (${team.pipeline.length} stages)`);
+                break;
+            }
+        }
+    }
+
     const agent = agents[agentId];
 
     // ── Invoke agent ────────────────────────────────────────────────────────
@@ -110,6 +156,17 @@ async function processMessage(dbMsg: any): Promise<void> {
         const providerLabel = provider === 'openai' ? 'Codex' : provider === 'opencode' ? 'OpenCode' : 'Claude';
         log('ERROR', `${providerLabel} error (agent: ${agentId}): ${(error as Error).message}`);
         response = "Sorry, I encountered an error processing your request. Please check the queue logs.";
+        // Fail pipeline run if active
+        if (pipelineRunId) {
+            failPipelineRun(pipelineRunId, (error as Error).message);
+            const run = getPipelineRun(pipelineRunId);
+            if (run) {
+                const stage = run.current_stage + 1;
+                const total = run.pipeline.length;
+                const teamId = run.team_id;
+                response = `Pipeline halted at stage ${stage}/${total} (@${agentId}): ${(error as Error).message}. Use @${teamId} /retry to resume or @${teamId} /restart to start over.`;
+            }
+        }
         const msgSender = isInternal ? data.fromAgent! : sender;
         insertAgentMessage({ agentId, role: 'assistant', channel, sender: msgSender, messageId, content: response });
         await sendDirectResponse(response, {
@@ -131,6 +188,7 @@ async function processMessage(dbMsg: any): Promise<void> {
 
     await handleTeamResponse({
         agentId, response, isTeamRouted, data, agents, teams,
+        pipelineRunId,
     });
 }
 
@@ -222,6 +280,61 @@ initQueueDb();
 const startupRecovered = recoverStaleMessages(0);
 if (startupRecovered > 0) {
     log('INFO', `Startup: recovered ${startupRecovered} in-flight message(s) from previous run`);
+}
+
+// Initialize pipeline table
+initPipelineDb();
+
+// Recover interrupted pipeline runs
+const runningPipelines = recoverRunningPipelines();
+for (const run of runningPipelines) {
+    const teams = getTeams(getSettings());
+    const team = teams[run.team_id];
+    if (!team) {
+        log('WARN', `Pipeline ${run.id}: team '${run.team_id}' no longer exists, marking failed`);
+        failPipelineRun(run.id, 'Team no longer exists');
+        continue;
+    }
+
+    const stage = run.current_stage;
+    const total = run.pipeline.length;
+    const agentId = run.pipeline[stage];
+
+    // Check if a message already exists in the queue for this pipeline run
+    // (recoverStaleMessages may have already re-queued it as 'pending')
+    if (hasPendingPipelineMessage(run.id)) {
+        log('INFO', `Pipeline ${run.id}: stage ${stage + 1}/${total} already in queue, skipping recovery`);
+        continue;
+    }
+
+    // Re-enqueue at the current stage
+    let message: string;
+    if (stage === 0) {
+        message = run.original_message;
+    } else {
+        message = [
+            `[Pipeline stage ${stage + 1}/${total} — recovery]`,
+            `Previous agent's response:`,
+            `---`,
+            run.last_response || '(no response recorded)',
+            `---`,
+            ``,
+            `Original task:`,
+            run.original_message,
+        ].join('\n');
+    }
+
+    enqueueMessage({
+        channel: run.channel,
+        sender: run.sender,
+        senderId: run.sender_id ?? undefined,
+        message,
+        messageId: genId('pipeline-recover'),
+        agent: agentId,
+        pipelineRunId: run.id,
+    });
+
+    log('INFO', `Recovered pipeline run ${run.id} for team ${run.team_id} at stage ${stage + 1}/${total}`);
 }
 
 const apiServer = startApiServer();

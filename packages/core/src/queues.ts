@@ -249,6 +249,13 @@ export function getChatMessages(teamId: string, limit = 100): any[] {
     return getDb().prepare(`SELECT * FROM chat_messages WHERE team_id=? ORDER BY created_at DESC LIMIT ?`).all(teamId, limit);
 }
 
+export function hasPendingPipelineMessage(pipelineRunId: string): boolean {
+    const row = getDb().prepare(
+        `SELECT 1 FROM messages WHERE pipeline_run_id = ? AND status IN ('pending','queued','processing') LIMIT 1`
+    ).get(pipelineRunId);
+    return !!row;
+}
+
 // ── Lifecycle ───────────────────────────────────────────────────────────────
 
 export function closeQueueDb(): void {
