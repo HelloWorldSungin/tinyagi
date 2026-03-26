@@ -68,20 +68,21 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 
 ## Phase 5: Wrap Up
 
-28. Run `/codebase-maintenance --full` to update Obsidian docs
-29. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+28. Create session log using `/notebooklm-vault` skill — hand off session context to the vault before maintenance
+29. Run `/codebase-maintenance --full` to update Obsidian docs
+30. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
     ```bash
     cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
     cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
     ```
-30. Create a PR:
+31. Create a PR:
     ```bash
     gh pr create \
       --title "[Arksignal-080] <epic title>" \
       --body "## Summary\n<description>\n\n## Evidence\n<paste health check + QA results>\n\n## Acceptance Criteria\n<checklist>"
     ```
-31. If evidence screenshots exist in `./evidence/`, attach them as PR comments
-32. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-080-<slug>`
+32. If evidence screenshots exist in `./evidence/`, attach them as PR comments
+33. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-080-<slug>`
 
 ## Rules
 
