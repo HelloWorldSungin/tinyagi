@@ -730,21 +730,21 @@ async function checkOutgoingQueue(): Promise<void> {
                     // Split message if needed (Discord 2000 char limit)
                     if (responseText) {
                         const chunks = splitMessage(responseText);
-                        let sentMessage: any;
+                        let firstSentMessage: any;
 
                         if (chunks.length > 0) {
                             if (pending && !pending.isGuild) {
-                                sentMessage = await pending.message.reply(chunks[0]!);
+                                firstSentMessage = await pending.message.reply(chunks[0]!);
                             } else {
-                                sentMessage = await responseChannel.send(chunks[0]!);
+                                firstSentMessage = await responseChannel.send(chunks[0]!);
                             }
                         }
                         for (let i = 1; i < chunks.length; i++) {
-                            sentMessage = await responseChannel.send(chunks[i]!);
+                            await responseChannel.send(chunks[i]!);
                         }
 
                         // Workflow gate: create gate record and add reaction
-                        if (sentMessage && resp.metadata?.workflowGate) {
+                        if (firstSentMessage && resp.metadata?.workflowGate) {
                             const meta = resp.metadata;
                             try {
                                 await fetch(`${API_BASE}/api/gate`, {
@@ -754,14 +754,14 @@ async function checkOutgoingQueue(): Promise<void> {
                                         teamId: meta.teamId,
                                         agentId: meta.agentId,
                                         channel: 'discord',
-                                        messageId: sentMessage.id,
-                                        threadId: sentMessage.channel.isThread?.() ? sentMessage.channel.id : null,
+                                        messageId: firstSentMessage.id,
+                                        threadId: firstSentMessage.channel.isThread?.() ? firstSentMessage.channel.id : null,
                                         originalTask: meta.originalTask,
                                         worktreePath: meta.worktreePath ?? null,
                                     }),
                                 });
-                                await sentMessage.react('✅');
-                                log('INFO', `Gate created for workflow response (Discord msg: ${sentMessage.id})`);
+                                await firstSentMessage.react('✅');
+                                log('INFO', `Gate created for workflow response (Discord msg: ${firstSentMessage.id})`);
                             } catch (gateErr: any) {
                                 log('ERROR', `Failed to create gate: ${gateErr.message}`);
                             }

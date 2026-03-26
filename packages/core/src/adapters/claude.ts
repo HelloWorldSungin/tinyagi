@@ -1,25 +1,7 @@
 import { AgentAdapter, InvokeOptions } from './types';
 import { runCommand, runCommandStreaming } from '../invoke';
 import { log } from '../logging';
-
-/**
- * Extract displayable text from a Claude stream-json event.
- * Skips 'result' events — those duplicate the final assistant message.
- */
-function extractEventText(json: any): string | null {
-    if (json.type === 'assistant' && json.message?.content) {
-        const parts: string[] = [];
-        for (const block of json.message.content) {
-            if (block.type === 'text' && block.text) {
-                parts.push(block.text);
-            } else if (block.type === 'tool_use' && block.name) {
-                parts.push(`[tool: ${block.name}]`);
-            }
-        }
-        return parts.length > 0 ? parts.join('\n') : null;
-    }
-    return null;
-}
+import { extractEventText } from './stream-utils';
 
 export const claudeAdapter: AgentAdapter = {
     providers: ['anthropic'],

@@ -6,9 +6,9 @@ const app = new Hono();
 // POST /api/message
 app.post('/api/message', async (c) => {
     const body = await c.req.json();
-    const { message, agent, sender, senderId, channel, messageId: clientMessageId } = body as {
+    const { message, agent, sender, senderId, channel, messageId: clientMessageId, resume, worktreePath } = body as {
         message?: string; agent?: string; sender?: string; senderId?: string;
-        channel?: string; messageId?: string;
+        channel?: string; messageId?: string; resume?: boolean; worktreePath?: string;
     };
 
     if (!message || typeof message !== 'string') {
@@ -39,6 +39,8 @@ app.post('/api/message', async (c) => {
         message,
         messageId,
         agent: resolvedAgent,
+        resume: resume || undefined,
+        worktreePath: worktreePath || undefined,
     });
 
     if (rowId === null) {

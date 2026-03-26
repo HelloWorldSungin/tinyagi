@@ -61,6 +61,11 @@ export function createGateRequest(
     return id;
 }
 
+export function getGateById(id: string): GateRequest | null {
+    const row = getDb().prepare('SELECT * FROM gate_requests WHERE id = ?').get(id);
+    return (row as GateRequest) ?? null;
+}
+
 export function getGateByMessageId(messageId: string): GateRequest | null {
     const row = getDb().prepare('SELECT * FROM gate_requests WHERE message_id = ?').get(messageId);
     return (row as GateRequest) ?? null;

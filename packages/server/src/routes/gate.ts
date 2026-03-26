@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import {
-    createGateRequest, getGateByMessageId, approveGate, rejectGate, getWaitingGates,
+    createGateRequest, getGateById, getGateByMessageId, approveGate, rejectGate, getWaitingGates,
 } from '@tinyagi/core';
 
 export const gateRoutes = new Hono();
@@ -48,6 +48,13 @@ gateRoutes.get('/message/:messageId', (c) => {
 // POST /api/gate/:id/approve — Approve a gate
 gateRoutes.post('/:id/approve', (c) => {
     const id = c.req.param('id');
+    const gate = getGateById(id);
+    if (!gate) {
+        return c.json({ error: 'Gate not found' }, 404);
+    }
+    if (gate.status !== 'waiting') {
+        return c.json({ error: `Gate is already ${gate.status}` }, 409);
+    }
     approveGate(id);
     return c.json({ status: 'approved' });
 });
@@ -55,6 +62,13 @@ gateRoutes.post('/:id/approve', (c) => {
 // POST /api/gate/:id/reject — Reject a gate
 gateRoutes.post('/:id/reject', (c) => {
     const id = c.req.param('id');
+    const gate = getGateById(id);
+    if (!gate) {
+        return c.json({ error: 'Gate not found' }, 404);
+    }
+    if (gate.status !== 'waiting') {
+        return c.json({ error: `Gate is already ${gate.status}` }, 409);
+    }
     rejectGate(id);
     return c.json({ status: 'rejected' });
 });
