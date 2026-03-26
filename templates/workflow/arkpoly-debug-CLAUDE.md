@@ -67,9 +67,9 @@ cd workspace && git pull
 
 ## Rules
 
+- **NEVER deploy to production** — only validate locally. Production deployment is done by humans after PR review.
 - **Always kill test/staging services when done** — never leave test processes running after validation.
 - NEVER propose a fix without completing root cause investigation first.
-- If deployment fails, report it clearly and stop.
 - If you encounter an error you can't resolve, report it clearly and stop.
 - Always work inside the git worktree, never on main directly.
 - Commit frequently with descriptive messages.

@@ -26,34 +26,23 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 15. Fix all issues found
 16. Re-run code review if needed (max 2 iterations)
 
-## Phase 3: Deploy & Validate
+## Phase 3: Validate Locally
 
-17. Deploy to staging first:
+17. Deploy to staging and run smoke tests:
     ```bash
     python scripts/deployment/deploy_ct110.py --staging
     python scripts/deployment/staging_smoke_test.py
     ```
-18. **Stop staging services** after smoke test (prevent leftover processes):
+18. **Stop staging services** after testing:
     ```bash
     python scripts/deployment/deploy_ct110.py --staging-stop
     ```
-19. If staging passes, promote to production:
-    ```bash
-    python scripts/deployment/promote_to_production.py
-    ```
-19. Capture health check output as evidence:
-    ```bash
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8811/health"
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8812/health"
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8766/health"
-    ```
-20. Save health check results to `./evidence/health-checks.txt`
-21. Run QA via Pi CLI:
+19. Run QA via Pi CLI:
     ```bash
     pi "Review this diff for bugs, logic errors, and regressions against these acceptance criteria: $(cat acceptance_criteria.txt). Diff: $(git diff main..HEAD)"
     ```
-22. Capture Pi's output to `./evidence/qa-review.txt`
-23. If Pi finds issues: fix them, re-deploy, re-QA (max 2 iterations)
+20. Capture Pi's output to `./evidence/qa-review.txt`
+21. If Pi finds issues: fix them, re-test (max 2 iterations)
 
 ## Phase 4: Wrap Up
 
@@ -75,8 +64,8 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 
 ## Rules
 
+- **NEVER deploy to production** — only validate on staging. Production deployment is done by humans after PR review.
 - **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
-- If deployment fails, attempt rollback: `python scripts/deployment/deploy_ct100.py --rollback <tag>`
 - If you encounter an error you can't resolve, report it clearly and stop.
 - Always work inside the git worktree, never on main directly.
 - Commit frequently with descriptive messages during implementation.

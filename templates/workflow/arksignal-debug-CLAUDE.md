@@ -38,30 +38,19 @@ cd workspace/vault && git pull
 12. Fix all issues found
 13. Re-run code review if needed (max 2 iterations)
 
-## Phase 4: Deploy & Validate
+## Phase 4: Validate Locally
 
-14. Deploy to staging first:
+14. Deploy to staging and run smoke tests:
     ```bash
     python scripts/deployment/deploy_ct110.py --staging
     python scripts/deployment/staging_smoke_test.py
     ```
-15. **Stop staging services** after smoke test (prevent leftover processes):
+15. **Stop staging services** after testing:
     ```bash
     python scripts/deployment/deploy_ct110.py --staging-stop
     ```
-16. If staging passes, promote to production:
-    ```bash
-    python scripts/deployment/promote_to_production.py
-    ```
-16. Capture health check output as evidence:
-    ```bash
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8811/health"
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8812/health"
-    ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8766/health"
-    ```
-17. Save health check results to `./evidence/health-checks.txt`
-18. Verify the bug is fixed in production — reproduce the original steps and confirm the issue is gone
-19. Capture verification output to `./evidence/bug-verification.txt`
+16. Verify the bug is fixed on staging — reproduce the original steps and confirm the issue is gone
+17. Capture verification output to `./evidence/bug-verification.txt`
 
 ## Phase 5: Wrap Up
 
@@ -83,9 +72,9 @@ cd workspace/vault && git pull
 
 ## Rules
 
+- **NEVER deploy to production** — only validate on staging. Production deployment is done by humans after PR review.
 - **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
 - NEVER propose a fix without completing root cause investigation first.
-- If deployment fails, attempt rollback: `python scripts/deployment/deploy_ct100.py --rollback <tag>`
 - If you encounter an error you can't resolve, report it clearly and stop.
 - Always work inside the git worktree, never on main directly.
 - Commit frequently with descriptive messages.
