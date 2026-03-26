@@ -11,7 +11,7 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 5. Follow `[[wikilinks]]` to read all linked stories in `vault/TaskNotes/Tasks/Story/`
 6. Collect all acceptance criteria (lines starting with `- [ ]`)
 7. Read any referenced specs or plans
-8. Create a git worktree: `git worktree add ../../worktrees/arksignal-080 -b arksignal-080`
+8. Create a git worktree using the full epic filename (without `.md`): `git worktree add ../../worktrees/ArkSignal-080-<slug> -b ArkSignal-080-<slug>` (e.g., `ArkSignal-036-autoresearch-multi-timeframe-strategy`)
 9. Change to the worktree directory for all subsequent work
 
 ## Phase 2: Implement
@@ -76,7 +76,7 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
       --body "## Summary\n<description>\n\n## Evidence\n<paste health check + QA results>\n\n## Acceptance Criteria\n<checklist>"
     ```
 31. If evidence screenshots exist in `./evidence/`, attach them as PR comments
-32. Clean up worktree: `cd ../.. && git worktree remove worktrees/arksignal-080`
+32. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-080-<slug>`
 
 ## Rules
 
