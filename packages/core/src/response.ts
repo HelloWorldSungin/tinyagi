@@ -57,6 +57,7 @@ export async function streamResponse(response: string, options: {
     originalMessage: string;
     agentId: string;
     transform?: (text: string) => string;
+    extraMetadata?: Record<string, unknown>;
 }): Promise<void> {
     let finalResponse = response.trim();
 
@@ -76,6 +77,7 @@ export async function streamResponse(response: string, options: {
     });
     const { message: responseMessage, files: allFiles } = handleLongResponse(hookedResponse, outboundFiles);
 
+    const allMetadata = { ...metadata, ...options.extraMetadata };
     enqueueResponse({
         channel: options.channel,
         sender: options.sender,
@@ -85,7 +87,7 @@ export async function streamResponse(response: string, options: {
         messageId: options.messageId,
         agent: options.agentId,
         files: allFiles.length > 0 ? allFiles : undefined,
-        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+        metadata: Object.keys(allMetadata).length > 0 ? allMetadata : undefined,
     });
 
     log('INFO', `@${options.agentId} responded:\n${finalResponse}`);

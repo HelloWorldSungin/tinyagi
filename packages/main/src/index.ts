@@ -26,6 +26,7 @@ import {
     failPipelineRun, getPipelineRun,
     recoverRunningPipelines, enqueueMessage, genId,
     hasPendingPipelineMessage,
+    initGateDb,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -134,9 +135,14 @@ async function processMessage(dbMsg: any): Promise<void> {
 
     // ── Invoke agent ────────────────────────────────────────────────────────
     const agentResetFlag = getAgentResetFlag(agentId, workspacePath);
-    const shouldReset = fs.existsSync(agentResetFlag);
+    let shouldReset = fs.existsSync(agentResetFlag);
     if (shouldReset) {
         fs.unlinkSync(agentResetFlag);
+    }
+
+    // Workflow resume: force continue conversation
+    if (data.resume) {
+        shouldReset = false;
     }
 
     ({ text: message } = await runIncomingHooks(message, { channel, sender, messageId, originalMessage: rawMessage }));
@@ -152,7 +158,7 @@ async function processMessage(dbMsg: any): Promise<void> {
                 channel, sender, senderId: data.senderId,
                 messageId, originalMessage: rawMessage, agentId,
             });
-        });
+        }, data.worktreePath);
     } catch (error) {
         const provider = agent.provider || 'anthropic';
         const providerLabel = provider === 'openai' ? 'Codex' : provider === 'opencode' ? 'OpenCode' : 'Claude';
@@ -184,6 +190,26 @@ async function processMessage(dbMsg: any): Promise<void> {
         isTeamMessage: isInternal || isTeamRouted,
     });
 
+    // ── Workflow gate ─────────────────────────────────────────────────────────
+    if (!data.resume) {
+        for (const [teamId, team] of Object.entries(teams)) {
+            if (team.workflow && team.agents.includes(agentId)) {
+                await sendDirectResponse(
+                    '---\n\u2705 **Awaiting deployment approval.** React with \u2705 to approve or \u274c to reject.',
+                    { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId },
+                    {
+                        workflowGate: true,
+                        teamId,
+                        agentId,
+                        originalTask: rawMessage,
+                        worktreePath: data.worktreePath,
+                    },
+                );
+                break;
+            }
+        }
+    }
+
     // ── Response routing ────────────────────────────────────────────────────
     // Team orchestration — handles team-routed, internal, and direct messages
     // to agents that belong to a team.
@@ -198,7 +224,8 @@ async function processMessage(dbMsg: any): Promise<void> {
 
 async function sendDirectResponse(
     response: string,
-    ctx: { channel: string; sender: string; senderId?: string | null; messageId: string; originalMessage: string; agentId: string }
+    ctx: { channel: string; sender: string; senderId?: string | null; messageId: string; originalMessage: string; agentId: string },
+    extraMetadata?: Record<string, unknown>,
 ): Promise<void> {
     const signed = `${response}\n\n- [${ctx.agentId}]`;
     await streamResponse(signed, {
@@ -208,6 +235,7 @@ async function sendDirectResponse(
         messageId: ctx.messageId,
         originalMessage: ctx.originalMessage,
         agentId: ctx.agentId,
+        extraMetadata,
     });
 }
 
@@ -286,6 +314,9 @@ if (startupRecovered > 0) {
 
 // Initialize pipeline table
 initPipelineDb();
+
+// Initialize workflow gate table
+initGateDb();
 
 // Recover interrupted pipeline runs
 const runningPipelines = recoverRunningPipelines();
