@@ -187,6 +187,7 @@ export async function invokeAgent(
     agents: Record<string, AgentConfig> = {},
     teams: Record<string, TeamConfig> = {},
     onEvent?: (text: string) => void,
+    worktreePathOverride?: string,
 ): Promise<string> {
     // Ensure agent directory exists with config files
     const agentDir = path.join(workspacePath, agentId);
@@ -200,11 +201,12 @@ export async function invokeAgent(
     const systemPrompt = buildSystemPrompt(agentId, agentDir, agents, teams, agent.system_prompt, agent.prompt_file);
 
     // Resolve working directory
-    const workingDir = agent.working_directory
-        ? (path.isAbsolute(agent.working_directory)
-            ? agent.working_directory
-            : path.join(workspacePath, agent.working_directory))
-        : agentDir;
+    const workingDir = worktreePathOverride
+        || (agent.working_directory
+            ? (path.isAbsolute(agent.working_directory)
+                ? agent.working_directory
+                : path.join(workspacePath, agent.working_directory))
+            : agentDir);
 
     const rawProvider = agent.provider || 'anthropic';
 

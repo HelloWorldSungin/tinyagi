@@ -28,6 +28,7 @@ import agentMessagesRoutes from './routes/agent-messages';
 import servicesRoutes from './routes/services';
 import schedulesRoutes from './routes/schedules';
 import pipelineRoutes from './routes/pipeline';
+import { gateRoutes } from './routes/gate';
 
 const API_PORT = parseInt(process.env.TINYAGI_API_PORT || '3777', 10);
 
@@ -57,6 +58,7 @@ export function startApiServer(): http.Server {
     app.route('/', servicesRoutes);
     app.route('/', schedulesRoutes);
     app.route('/', pipelineRoutes);
+    app.route('/api/gate', gateRoutes);
 
     // SSE endpoint — needs raw Node.js response for streaming
     app.get('/api/events/stream', (c) => {

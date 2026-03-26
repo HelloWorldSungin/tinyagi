@@ -13,6 +13,7 @@ export interface AgentConfig {
     working_directory: string;
     system_prompt?: string;
     prompt_file?: string;
+    workflow?: boolean;      // auto-gate after response on TaskNote ticker messages
     heartbeat?: {
         enabled?: boolean;
         interval?: number;
@@ -121,6 +122,8 @@ export interface MessageJobData {
     agent?: string;
     fromAgent?: string;
     pipelineRunId?: string;
+    resume?: boolean;
+    worktreePath?: string;
 }
 
 export interface ResponseJobData {

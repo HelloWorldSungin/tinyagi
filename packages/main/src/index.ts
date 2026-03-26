@@ -26,6 +26,7 @@ import {
     failPipelineRun, getPipelineRun,
     recoverRunningPipelines, enqueueMessage, genId,
     hasPendingPipelineMessage,
+    initGateDb, expireStaleGates,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -52,6 +53,8 @@ async function processMessage(dbMsg: any): Promise<void> {
         agent: dbMsg.agent ?? undefined,
         fromAgent: dbMsg.from_agent ?? undefined,
         pipelineRunId: dbMsg.pipeline_run_id ?? undefined,
+        resume: !!dbMsg.resume,
+        worktreePath: dbMsg.worktree_path ?? undefined,
     };
 
     const { channel, sender, message: rawMessage, messageId, agent: preRoutedAgent } = data;
@@ -132,9 +135,14 @@ async function processMessage(dbMsg: any): Promise<void> {
 
     // ── Invoke agent ────────────────────────────────────────────────────────
     const agentResetFlag = getAgentResetFlag(agentId, workspacePath);
-    const shouldReset = fs.existsSync(agentResetFlag);
+    let shouldReset = fs.existsSync(agentResetFlag);
     if (shouldReset) {
         fs.unlinkSync(agentResetFlag);
+    }
+
+    // Workflow resume: force continue conversation
+    if (data.resume) {
+        shouldReset = false;
     }
 
     ({ text: message } = await runIncomingHooks(message, { channel, sender, messageId, originalMessage: rawMessage }));
@@ -144,13 +152,15 @@ async function processMessage(dbMsg: any): Promise<void> {
     try {
         response = await invokeAgent(agent, agentId, message, workspacePath, shouldReset, agents, teams, (text) => {
             log('INFO', `Agent ${agentId}: ${text}`);
+            // Skip tool-use-only events (e.g., "[tool: Bash]") — don't send to Discord
+            if (/^\[tool: .+\]$/.test(text.trim())) return;
             insertAgentMessage({ agentId, role: 'assistant', channel, sender: agentId, messageId, content: text });
             emitEvent('agent:progress', { agentId, agentName: agent.name, text, messageId });
             sendDirectResponse(text, {
                 channel, sender, senderId: data.senderId,
                 messageId, originalMessage: rawMessage, agentId,
             });
-        });
+        }, data.worktreePath);
     } catch (error) {
         const provider = agent.provider || 'anthropic';
         const providerLabel = provider === 'openai' ? 'Codex' : provider === 'opencode' ? 'OpenCode' : 'Claude';
@@ -182,6 +192,25 @@ async function processMessage(dbMsg: any): Promise<void> {
         isTeamMessage: isInternal || isTeamRouted,
     });
 
+    // ── Workflow gate ─────────────────────────────────────────────────────────
+    // Only gate when: agent has workflow flag + message is a TaskNote ticker + not a resume
+    const isTaskNoteTicker = /^(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage.trim());
+    if (!data.resume && isTaskNoteTicker && agent.workflow) {
+        // Find which team this agent belongs to (for metadata)
+        const teamId = Object.entries(teams).find(([, t]) => t.agents.includes(agentId))?.[0] || agentId;
+        await sendDirectResponse(
+            '---\n\u2705 **Awaiting deployment approval.** React with \u2705 to approve or \u274c to reject.',
+            { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId },
+            {
+                workflowGate: true,
+                teamId,
+                agentId,
+                originalTask: rawMessage,
+                worktreePath: data.worktreePath,
+            },
+        );
+    }
+
     // ── Response routing ────────────────────────────────────────────────────
     // Team orchestration — handles team-routed, internal, and direct messages
     // to agents that belong to a team.
@@ -196,7 +225,8 @@ async function processMessage(dbMsg: any): Promise<void> {
 
 async function sendDirectResponse(
     response: string,
-    ctx: { channel: string; sender: string; senderId?: string | null; messageId: string; originalMessage: string; agentId: string }
+    ctx: { channel: string; sender: string; senderId?: string | null; messageId: string; originalMessage: string; agentId: string },
+    extraMetadata?: Record<string, unknown>,
 ): Promise<void> {
     const signed = `${response}\n\n- [${ctx.agentId}]`;
     await streamResponse(signed, {
@@ -206,6 +236,7 @@ async function sendDirectResponse(
         messageId: ctx.messageId,
         originalMessage: ctx.originalMessage,
         agentId: ctx.agentId,
+        extraMetadata,
     });
 }
 
@@ -285,6 +316,9 @@ if (startupRecovered > 0) {
 // Initialize pipeline table
 initPipelineDb();
 
+// Initialize workflow gate table
+initGateDb();
+
 // Recover interrupted pipeline runs
 const runningPipelines = recoverRunningPipelines();
 for (const run of runningPipelines) {
@@ -355,6 +389,9 @@ const pollInterval = setInterval(() => processQueue(), 5000);
 const maintenanceInterval = setInterval(() => {
     pruneAckedResponses();
     pruneCompletedMessages();
+    // Expire gates waiting longer than 7 days
+    const expired = expireStaleGates(7 * 24 * 60 * 60 * 1000);
+    if (expired > 0) log('INFO', `Expired ${expired} stale gate(s)`);
 }, 60 * 1000);
 
 // Load plugins

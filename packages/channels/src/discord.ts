@@ -5,7 +5,7 @@
  * Does NOT call Claude directly - that's handled by queue-processor
  */
 
-import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, PublicThreadChannel, AttachmentBuilder } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, PublicThreadChannel, AttachmentBuilder, REST, Routes, SlashCommandBuilder } from 'discord.js';
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
@@ -340,19 +340,132 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
     ],
     partials: [
         Partials.Channel,
         Partials.Message,
+        Partials.Reaction,
     ],
 });
 
+// ── Slash Commands ─────────────────────────────────────────────────────────
+
+const slashCommands = [
+    new SlashCommandBuilder()
+        .setName('agents')
+        .setDescription('List all available agents'),
+    new SlashCommandBuilder()
+        .setName('teams')
+        .setDescription('List all available teams'),
+    new SlashCommandBuilder()
+        .setName('reset')
+        .setDescription('Reset an agent conversation')
+        .addStringOption(opt => opt.setName('agent').setDescription('Agent ID to reset').setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('status')
+        .setDescription('Check pipeline/workflow status for a team')
+        .addStringOption(opt => opt.setName('team').setDescription('Team ID').setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('retry')
+        .setDescription('Retry a failed pipeline for a team')
+        .addStringOption(opt => opt.setName('team').setDescription('Team ID').setRequired(true)),
+    new SlashCommandBuilder()
+        .setName('restart')
+        .setDescription('Restart a pipeline for a team')
+        .addStringOption(opt => opt.setName('team').setDescription('Team ID').setRequired(true))
+        .addStringOption(opt => opt.setName('message').setDescription('New message (optional)').setRequired(false)),
+];
+
+async function registerSlashCommands(clientId: string, token: string): Promise<void> {
+    const rest = new REST({ version: '10' }).setToken(token);
+    try {
+        await rest.put(Routes.applicationCommands(clientId), {
+            body: slashCommands.map(c => c.toJSON()),
+        });
+        log('INFO', `Registered ${slashCommands.length} slash command(s)`);
+    } catch (err: any) {
+        log('ERROR', `Failed to register slash commands: ${err.message}`);
+    }
+}
+
 // Client ready
-client.on(Events.ClientReady, (readyClient) => {
+client.on(Events.ClientReady, async (readyClient) => {
     log('INFO', `Discord bot connected as ${readyClient.user.tag}`);
     log('INFO', 'Listening for DMs and guild channels...');
+    await registerSlashCommands(readyClient.user.id, DISCORD_BOT_TOKEN);
+});
+
+// Slash command handler
+client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const { commandName } = interaction;
+
+    try {
+        if (commandName === 'agents') {
+            const text = getAgentListText();
+            await interaction.reply(text || 'No agents configured.');
+        } else if (commandName === 'teams') {
+            const text = getTeamListText();
+            await interaction.reply(text || 'No teams configured.');
+        } else if (commandName === 'reset') {
+            const agentId = interaction.options.getString('agent', true);
+            const res = await fetch(`${API_BASE}/api/reset/${agentId}`, { method: 'POST' });
+            if (res.ok) {
+                await interaction.reply(`Conversation reset for \`${agentId}\`.`);
+            } else {
+                await interaction.reply(`Failed to reset \`${agentId}\`.`);
+            }
+        } else if (commandName === 'status') {
+            const teamId = interaction.options.getString('team', true);
+            // Try pipeline status first
+            const pipelineRes = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+            const pipelineData = await pipelineRes.json() as any;
+            // Try gate status
+            const gateRes = await fetch(`${API_BASE}/api/gate/waiting`);
+            const gates = (gateRes.ok ? await gateRes.json() : []) as any[];
+            const teamGates = gates.filter((g: any) => g.team_id === teamId);
+
+            let status = '';
+            if (pipelineRes.ok && pipelineData.message) {
+                status += `**Pipeline:** ${pipelineData.message}\n`;
+            }
+            if (teamGates.length > 0) {
+                for (const g of teamGates) {
+                    status += `**Gate:** ${g.original_task} — waiting for approval (agent: ${g.agent_id})\n`;
+                }
+            }
+            if (!status) {
+                status = `No active pipelines or gates for \`${teamId}\`.`;
+            }
+            await interaction.reply(status);
+        } else if (commandName === 'retry') {
+            const teamId = interaction.options.getString('team', true);
+            const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/retry`, { method: 'POST' });
+            const data = await res.json() as any;
+            await interaction.reply(data.message || data.error || 'Done.');
+        } else if (commandName === 'restart') {
+            const teamId = interaction.options.getString('team', true);
+            const msg = interaction.options.getString('message') || undefined;
+            const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/restart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg }),
+            });
+            const data = await res.json() as any;
+            await interaction.reply(data.message || data.error || 'Done.');
+        }
+    } catch (err: any) {
+        log('ERROR', `Slash command error (${commandName}): ${err.message}`);
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp('An error occurred processing the command.');
+        } else {
+            await interaction.reply('An error occurred processing the command.');
+        }
+    }
 });
 
 // Message received - Write to queue
@@ -598,6 +711,71 @@ client.on(Events.MessageCreate, async (message: Message) => {
     }
 });
 
+// Workflow gate — reaction handler
+client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+        if (user.bot) return;
+
+        // Fetch partials if needed
+        if (reaction.partial) {
+            try { await reaction.fetch(); } catch { return; }
+        }
+        if (reaction.message.partial) {
+            try { await reaction.message.fetch(); } catch { return; }
+        }
+
+        const emoji = reaction.emoji.name;
+        if (emoji !== '✅' && emoji !== '❌') return;
+
+        const discordMessageId = reaction.message.id;
+
+        // Check if this is a gate message
+        let gateRes: Response;
+        try {
+            gateRes = await fetch(`${API_BASE}/api/gate/message/${discordMessageId}`);
+        } catch { return; }
+        if (!gateRes.ok) return;
+
+        const gate = await gateRes.json() as any;
+        if (gate.status !== 'waiting') return;
+
+        if (emoji === '✅') {
+            await fetch(`${API_BASE}/api/gate/${gate.id}/approve`, { method: 'POST' });
+
+            await fetch(`${API_BASE}/api/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channel: 'discord',
+                    sender: gate.original_task,
+                    senderId: user.id,
+                    message: 'Human approved deployment. Continue from Phase 4 (deploy). Re-read the plan and spec files to refresh context.',
+                    agent: gate.agent_id,
+                    resume: true,
+                    worktreePath: gate.worktree_path,
+                }),
+            });
+
+            log('INFO', `Gate ${gate.id} approved by ${(user as any).tag || user.id}, resuming agent ${gate.agent_id}`);
+
+            const channel = reaction.message.channel;
+            if (channel.isTextBased()) {
+                await (channel as any).send(`✅ Deployment approved by <@${user.id}>. Resuming workflow...`);
+            }
+        } else if (emoji === '❌') {
+            await fetch(`${API_BASE}/api/gate/${gate.id}/reject`, { method: 'POST' });
+            log('INFO', `Gate ${gate.id} rejected by ${(user as any).tag || user.id}`);
+
+            const channel = reaction.message.channel;
+            if (channel.isTextBased()) {
+                await (channel as any).send(`❌ Deployment rejected by <@${user.id}>. Use \`@${gate.team_id} /gate <feedback>\` to provide guidance.`);
+            }
+        }
+    } catch (error: any) {
+        log('ERROR', `Reaction handler error: ${error.message}`);
+    }
+});
+
 // Watch for responses via API
 async function checkOutgoingQueue(): Promise<void> {
     if (processingOutgoingQueue) {
@@ -663,16 +841,41 @@ async function checkOutgoingQueue(): Promise<void> {
                     // Split message if needed (Discord 2000 char limit)
                     if (responseText) {
                         const chunks = splitMessage(responseText);
+                        let firstSentMessage: any;
 
                         if (chunks.length > 0) {
                             if (pending && !pending.isGuild) {
-                                await pending.message.reply(chunks[0]!);
+                                firstSentMessage = await pending.message.reply(chunks[0]!);
                             } else {
-                                await responseChannel.send(chunks[0]!);
+                                firstSentMessage = await responseChannel.send(chunks[0]!);
                             }
                         }
                         for (let i = 1; i < chunks.length; i++) {
                             await responseChannel.send(chunks[i]!);
+                        }
+
+                        // Workflow gate: create gate record and add reaction
+                        if (firstSentMessage && resp.metadata?.workflowGate) {
+                            const meta = resp.metadata;
+                            try {
+                                await fetch(`${API_BASE}/api/gate`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        teamId: meta.teamId,
+                                        agentId: meta.agentId,
+                                        channel: 'discord',
+                                        messageId: firstSentMessage.id,
+                                        threadId: firstSentMessage.channel.isThread?.() ? firstSentMessage.channel.id : null,
+                                        originalTask: meta.originalTask,
+                                        worktreePath: meta.worktreePath ?? null,
+                                    }),
+                                });
+                                await firstSentMessage.react('✅');
+                                log('INFO', `Gate created for workflow response (Discord msg: ${firstSentMessage.id})`);
+                            } catch (gateErr: any) {
+                                log('ERROR', `Failed to create gate: ${gateErr.message}`);
+                            }
                         }
                     }
 

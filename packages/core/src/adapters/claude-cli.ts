@@ -3,12 +3,19 @@ import { runCommand, runCommandStreaming } from '../invoke';
 import { log } from '../logging';
 import { extractEventText } from './stream-utils';
 
-export const claudeAdapter: AgentAdapter = {
-    providers: ['anthropic'],
+/**
+ * Claude CLI adapter for workflow agents.
+ *
+ * Unlike the standard `claudeAdapter`, this adapter does NOT pass
+ * `--system-prompt`. Workflow agents rely on CLAUDE.md files in their
+ * workspace directory for system-level instructions.
+ */
+export const claudeCliAdapter: AgentAdapter = {
+    providers: ['claude-cli'],
 
     async invoke(opts: InvokeOptions): Promise<string> {
-        const { agentId, message, workingDir, systemPrompt, model, shouldReset, envOverrides, onEvent } = opts;
-        log('DEBUG', `Using Claude provider (agent: ${agentId})`);
+        const { agentId, message, workingDir, model, shouldReset, envOverrides, onEvent } = opts;
+        log('DEBUG', `Using Claude CLI provider (agent: ${agentId})`);
 
         const continueConversation = !shouldReset;
         if (shouldReset) {
@@ -17,7 +24,7 @@ export const claudeAdapter: AgentAdapter = {
 
         const args = ['--dangerously-skip-permissions'];
         if (model) args.push('--model', model);
-        if (systemPrompt) args.push('--system-prompt', systemPrompt);
+        // No --system-prompt: workflow agents use CLAUDE.md in their workspace
         if (continueConversation) args.push('-c');
 
         if (onEvent) {
@@ -29,8 +36,8 @@ export const claudeAdapter: AgentAdapter = {
                     const json = JSON.parse(line);
                     if (json.type === 'result') {
                         if (json.result) response = json.result;
-                        if (json.usage) log('INFO', `Claude usage (${agentId}): ${JSON.stringify(json.usage)}`);
-                        if (json.modelUsage) log('INFO', `Claude model usage (${agentId}): ${JSON.stringify(json.modelUsage)}`);
+                        if (json.usage) log('INFO', `Claude CLI usage (${agentId}): ${JSON.stringify(json.usage)}`);
+                        if (json.modelUsage) log('INFO', `Claude CLI model usage (${agentId}): ${JSON.stringify(json.modelUsage)}`);
                         // Result received — all useful output is done.
                         // Signal that the process should exit soon or be killed.
                         signalDone();
@@ -47,7 +54,7 @@ export const claudeAdapter: AgentAdapter = {
             }, workingDir, envOverrides, agentId);
             await promise;
 
-            return response || 'Sorry, I could not generate a response from Claude.';
+            return response || 'Sorry, I could not generate a response from Claude CLI.';
         }
 
         args.push('-p', message);
