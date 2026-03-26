@@ -266,6 +266,8 @@ bot.api.setMyCommands([
     { command: 'team', description: 'List available teams' },
     { command: 'reset', description: 'Reset conversation history' },
     { command: 'restart', description: 'Restart TinyAGI' },
+    { command: 'status', description: 'Check pipeline status (@team /status)' },
+    { command: 'retry', description: 'Retry failed pipeline (@team /retry)' },
 ]).catch((err: Error) => log('WARN', `Failed to register commands: ${err.message}`));
 
 // Message received - Write to queue
@@ -426,6 +428,71 @@ bot.on('message', async (ctx) => {
             const { exec } = require('child_process');
             exec(`"${path.join(SCRIPT_DIR, 'lib', 'tinyagi.sh')}" restart`, { detached: true, stdio: 'ignore' });
             return;
+        }
+
+        // Pipeline commands: @team_id /retry|restart|status
+        const pipelineMatch = messageText.trim().match(/^@(\S+)\s+[!/](retry|restart|status)(?:\s+([\s\S]*))?$/i);
+        if (pipelineMatch) {
+            const teamId = pipelineMatch[1];
+            const command = pipelineMatch[2].toLowerCase();
+            const body = pipelineMatch[3]?.trim() || '';
+
+            // Verify team is in pipeline mode
+            let isPipelineTeam = false;
+            try {
+                const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+                const settings = JSON.parse(settingsData);
+                isPipelineTeam = settings.teams?.[teamId]?.mode === 'pipeline';
+            } catch { /* ignore */ }
+
+            if (isPipelineTeam) {
+                log('INFO', `Pipeline command: @${teamId} /${command}`);
+                try {
+                    if (command === 'status') {
+                        const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+                        const data = await res.json() as { message: string };
+                        await bot.api.sendMessage(msg.chat.id, data.message, {
+                            reply_parameters: { message_id: msg.message_id },
+                        });
+                    } else if (command === 'retry') {
+                        const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/retry`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                channel: 'telegram',
+                                sender,
+                                senderId,
+                            }),
+                        });
+                        const data = await res.json() as { message: string };
+                        await bot.api.sendMessage(msg.chat.id, data.message, {
+                            reply_parameters: { message_id: msg.message_id },
+                        });
+                    } else if (command === 'restart') {
+                        const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/restart`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: body || undefined,
+                                channel: 'telegram',
+                                sender,
+                                senderId,
+                            }),
+                        });
+                        const data = await res.json() as { message: string };
+                        await bot.api.sendMessage(msg.chat.id, data.message, {
+                            reply_parameters: { message_id: msg.message_id },
+                        });
+                    }
+                } catch (err) {
+                    log('ERROR', `Pipeline command error: ${(err as Error).message}`);
+                    await bot.api.sendMessage(msg.chat.id, 'Could not process pipeline command. Is the queue processor running?', {
+                        reply_parameters: { message_id: msg.message_id },
+                    });
+                }
+                return;
+            }
+            // Not a pipeline team — fall through to normal message handling
         }
 
         // Apply default agent routing
