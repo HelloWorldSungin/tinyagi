@@ -32,7 +32,7 @@ export interface Settings {
     };
     channels?: {
         enabled?: string[];
-        discord?: { bot_token?: string };
+        discord?: { bot_token?: string; guild_channels?: Record<string, string> };
         telegram?: { bot_token?: string };
         whatsapp?: {};
         defaults?: Record<string, { agentId: string }>;
