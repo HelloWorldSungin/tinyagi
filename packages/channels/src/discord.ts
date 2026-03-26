@@ -561,18 +561,27 @@ async function checkOutgoingQueue(): Promise<void> {
 
                 // Find pending message, or fall back to senderId for proactive messages
                 const pending = pendingMessages.get(messageId);
-                let dmChannel = pending?.channel ?? null;
+                let responseChannel: DMChannel | PublicThreadChannel | null = pending?.channel ?? null;
 
-                if (!dmChannel && senderId) {
-                    try {
-                        const user = await client.users.fetch(senderId);
-                        dmChannel = await user.createDM();
-                    } catch (err) {
-                        log('ERROR', `Could not open DM for senderId ${senderId}: ${(err as Error).message}`);
+                if (!responseChannel) {
+                    // Check if this was a guild message — if so, don't fallback to DM
+                    if (pending?.isGuild || messageId.startsWith('discord-guild')) {
+                        log('WARN', `Guild message ${messageId} pending entry missing/evicted, acking without response`);
+                        await fetch(`${API_BASE}/api/responses/${resp.id}/ack`, { method: 'POST' });
+                        continue;
+                    }
+                    // DM/proactive fallback: try to open a DM
+                    if (senderId) {
+                        try {
+                            const user = await client.users.fetch(senderId);
+                            responseChannel = await user.createDM();
+                        } catch (err) {
+                            log('ERROR', `Could not open DM for senderId ${senderId}: ${(err as Error).message}`);
+                        }
                     }
                 }
 
-                if (dmChannel) {
+                if (responseChannel) {
                     // Send any attached files
                     if (files.length > 0) {
                         const attachments: AttachmentBuilder[] = [];
@@ -585,7 +594,7 @@ async function checkOutgoingQueue(): Promise<void> {
                             }
                         }
                         if (attachments.length > 0) {
-                            await dmChannel.send({ files: attachments });
+                            await responseChannel.send({ files: attachments });
                             log('INFO', `Sent ${attachments.length} file(s) to Discord`);
                         }
                     }
@@ -595,14 +604,14 @@ async function checkOutgoingQueue(): Promise<void> {
                         const chunks = splitMessage(responseText);
 
                         if (chunks.length > 0) {
-                            if (pending) {
+                            if (pending && !pending.isGuild) {
                                 await pending.message.reply(chunks[0]!);
                             } else {
-                                await dmChannel.send(chunks[0]!);
+                                await responseChannel.send(chunks[0]!);
                             }
                         }
                         for (let i = 1; i < chunks.length; i++) {
-                            await dmChannel.send(chunks[i]!);
+                            await responseChannel.send(chunks[i]!);
                         }
                     }
 
