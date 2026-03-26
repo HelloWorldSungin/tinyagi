@@ -23,6 +23,8 @@ export interface TeamConfig {
     name: string;
     agents: string[];
     leader_agent: string;
+    mode?: 'collaborative' | 'pipeline';
+    pipeline?: string[];
 }
 
 export interface Settings {
@@ -118,6 +120,7 @@ export interface MessageJobData {
     messageId: string;
     agent?: string;
     fromAgent?: string;
+    pipelineRunId?: string;
 }
 
 export interface ResponseJobData {
