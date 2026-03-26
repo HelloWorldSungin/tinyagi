@@ -19,3 +19,4 @@ export * from './queues';
 export * from './memory';
 export * from './ids';
 export * from './schedules';
+export * from './pipeline';
