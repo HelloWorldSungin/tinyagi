@@ -74,9 +74,12 @@ export function initQueueDb(): void {
     if (msgCols.some(c => c.name === 'conversation_id')) {
         db.exec('ALTER TABLE messages DROP COLUMN conversation_id');
     }
+    if (!msgCols.some(c => c.name === 'pipeline_run_id')) {
+        db.exec('ALTER TABLE messages ADD COLUMN pipeline_run_id TEXT');
+    }
 }
 
-function getDb(): Database.Database {
+export function getDb(): Database.Database {
     if (!db) throw new Error('Queue DB not initialized — call initQueueDb() first');
     return db;
 }
@@ -87,10 +90,10 @@ export function enqueueMessage(data: MessageJobData): number | null {
     const now = Date.now();
     try {
         const r = getDb().prepare(
-            `INSERT INTO messages (message_id,channel,sender,sender_id,message,agent,from_agent,status,created_at,updated_at)
-             VALUES (?,?,?,?,?,?,?,'pending',?,?)`
+            `INSERT INTO messages (message_id,channel,sender,sender_id,message,agent,from_agent,pipeline_run_id,status,created_at,updated_at)
+             VALUES (?,?,?,?,?,?,?,?,'pending',?,?)`
         ).run(data.messageId, data.channel, data.sender, data.senderId ?? null, data.message,
-            data.agent ?? null, data.fromAgent ?? null, now, now);
+            data.agent ?? null, data.fromAgent ?? null, data.pipelineRunId ?? null, now, now);
         queueEvents.emit('message:enqueued', { id: r.lastInsertRowid, agent: data.agent });
         return r.lastInsertRowid as number;
     } catch (err: any) {
