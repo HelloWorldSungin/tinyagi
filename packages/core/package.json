@@ -5,7 +5,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc -w"
+    "dev": "tsc -w",
+    "test": "vitest run"
   },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
@@ -15,6 +16,7 @@
     "nanoid": "^5.1.6"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/better-sqlite3": "^7.6.13",
+    "vitest": "^4.1.1"
   }
 }
