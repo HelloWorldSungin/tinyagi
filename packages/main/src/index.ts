@@ -26,7 +26,7 @@ import {
     failPipelineRun, getPipelineRun,
     recoverRunningPipelines, enqueueMessage, genId,
     hasPendingPipelineMessage,
-    initGateDb,
+    initGateDb, expireStaleGates,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -388,6 +388,9 @@ const pollInterval = setInterval(() => processQueue(), 5000);
 const maintenanceInterval = setInterval(() => {
     pruneAckedResponses();
     pruneCompletedMessages();
+    // Expire gates waiting longer than 7 days
+    const expired = expireStaleGates(7 * 24 * 60 * 60 * 1000);
+    if (expired > 0) log('INFO', `Expired ${expired} stale gate(s)`);
 }, 60 * 1000);
 
 // Load plugins
