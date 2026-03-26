@@ -191,7 +191,9 @@ async function processMessage(dbMsg: any): Promise<void> {
     });
 
     // ── Workflow gate ─────────────────────────────────────────────────────────
-    if (!data.resume) {
+    // Only gate when the message is a TaskNote ticker (e.g., "Arksignal-080", "ArkPoly-042")
+    const isTaskNoteTicker = /^(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage.trim());
+    if (!data.resume && isTaskNoteTicker) {
         for (const [teamId, team] of Object.entries(teams)) {
             if (team.workflow && team.agents.includes(agentId)) {
                 await sendDirectResponse(
