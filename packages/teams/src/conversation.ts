@@ -3,6 +3,8 @@ import {
     log, emitEvent,
     findTeamForAgent, insertChatMessage,
     enqueueMessage, genId,
+    getPipelineRun, advancePipelineStage, completePipelineRun,
+    streamResponse,
 } from '@tinyagi/core';
 import { convertTagsToReadable, extractTeammateMentions, extractChatRoomMessages } from './routing';
 
@@ -64,8 +66,9 @@ export async function handleTeamResponse(params: {
     data: MessageJobData;
     agents: Record<string, AgentConfig>;
     teams: Record<string, TeamConfig>;
+    pipelineRunId?: string;
 }): Promise<boolean> {
-    const { agentId, response, isTeamRouted, data, agents, teams } = params;
+    const { agentId, response, isTeamRouted, data, agents, teams, pipelineRunId } = params;
     const { channel, sender, messageId } = data;
 
     // Extract and post [#team_id: message] chat room broadcasts
@@ -83,6 +86,64 @@ export async function handleTeamResponse(params: {
     if (!teamContext) {
         log('DEBUG', `No team context for agent ${agentId} — falling back to direct response`);
         return false;
+    }
+
+    // Pipeline mode — skip mention parsing, advance stage or complete
+    if (teamContext.team.mode === 'pipeline' && pipelineRunId) {
+        const run = getPipelineRun(pipelineRunId);
+        if (!run) {
+            log('ERROR', `Pipeline run ${pipelineRunId} not found`);
+            return true;
+        }
+
+        const pipeline = run.pipeline;
+        const total = pipeline.length;
+        const isLastStage = run.current_stage >= total - 1;
+
+        if (isLastStage) {
+            completePipelineRun(run.id, response);
+            log('INFO', `Pipeline ${run.id} completed (${total}/${total} stages)`);
+
+            const notification = `Pipeline complete (${total}/${total} stages). All stages finished successfully.`;
+            await streamResponse(notification, {
+                channel: data.channel,
+                sender: data.sender,
+                senderId: data.senderId ?? undefined,
+                messageId: genId('pipeline-done'),
+                originalMessage: run.original_message,
+                agentId: teamContext.teamId,
+            });
+        } else {
+            advancePipelineStage(run.id, response);
+            const nextStage = run.current_stage + 1;
+            const nextAgentId = pipeline[nextStage];
+
+            const pipelineMessage = [
+                `[Pipeline stage ${nextStage + 1}/${total} — from @${agentId}]`,
+                `Previous agent's response:`,
+                `---`,
+                response,
+                `---`,
+                ``,
+                `Original task:`,
+                run.original_message,
+            ].join('\n');
+
+            enqueueMessage({
+                channel: data.channel,
+                sender: data.sender,
+                senderId: data.senderId ?? undefined,
+                message: pipelineMessage,
+                messageId: genId('pipeline'),
+                agent: nextAgentId,
+                fromAgent: agentId,
+                pipelineRunId: run.id,
+            });
+
+            log('INFO', `Pipeline ${run.id}: stage ${nextStage + 1}/${total} → @${nextAgentId}`);
+        }
+
+        return true;
     }
 
     // Extract teammate mentions and enqueue as flat DMs
