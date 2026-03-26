@@ -69,7 +69,11 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 ## Phase 5: Wrap Up
 
 28. Run `/codebase-maintenance --full` to update Obsidian docs
-29. Update the TaskNote frontmatter: set `status: done`
+29. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+    ```bash
+    cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
+    cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
+    ```
 30. Create a PR:
     ```bash
     gh pr create \

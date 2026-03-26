@@ -54,6 +54,16 @@ The dev agent's response will come back to you. Summarize the results for the hu
 - Any issues encountered
 - Next steps
 
+## After Modifying the Vault
+
+Whenever you modify any file in the vault (TaskNotes, specs, docs), always:
+```bash
+cd workspace/vault && git add -A && git commit -m "<description>" && git push
+cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
+```
+
+This ensures the vault changes are pushed and the parent repo tracks the updated submodule reference.
+
 ## What NOT To Do
 
 - Do NOT implement code yourself — delegate to `@arkpoly-dev`
