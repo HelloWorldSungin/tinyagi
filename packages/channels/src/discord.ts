@@ -216,6 +216,66 @@ function buildThreadName(messageText: string, username: string): string {
     return name.length > 90 ? name.substring(0, 90) + '...' : name;
 }
 
+// Check for text commands (/agent, /team, /reset, /restart) and handle them.
+// Returns true if the message was a command and was handled.
+async function handleTextCommand(message: Message): Promise<boolean> {
+    const content = message.content?.trim() || '';
+
+    if (content.match(/^[!/]agent$/i)) {
+        log('INFO', 'Agent list command received');
+        await message.reply(getAgentListText());
+        return true;
+    }
+
+    if (content.match(/^[!/]team$/i)) {
+        log('INFO', 'Team list command received');
+        await message.reply(getTeamListText());
+        return true;
+    }
+
+    if (content.match(/^[!/]reset$/i)) {
+        await message.reply('Usage: `/reset @agent_id [@agent_id2 ...]`\nSpecify which agent(s) to reset.');
+        return true;
+    }
+
+    const resetMatch = content.match(/^[!/]reset\s+(.+)$/i);
+    if (resetMatch) {
+        log('INFO', 'Per-agent reset command received');
+        const agentArgs = resetMatch[1].split(/\s+/).map(a => a.replace(/^@/, '').toLowerCase());
+        try {
+            const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+            const settings = JSON.parse(settingsData);
+            const agents = settings.agents || {};
+            const workspacePath = settings?.workspace?.path || path.join(require('os').homedir(), 'tinyagi-workspace');
+            const resetResults: string[] = [];
+            for (const agentId of agentArgs) {
+                if (!agents[agentId]) {
+                    resetResults.push(`Agent '${agentId}' not found.`);
+                    continue;
+                }
+                const flagDir = path.join(workspacePath, agentId);
+                if (!fs.existsSync(flagDir)) fs.mkdirSync(flagDir, { recursive: true });
+                fs.writeFileSync(path.join(flagDir, 'reset_flag'), 'reset');
+                resetResults.push(`Reset @${agentId} (${agents[agentId].name}).`);
+            }
+            await message.reply(resetResults.join('\n'));
+        } catch {
+            await message.reply('Could not process reset command. Check settings.');
+        }
+        return true;
+    }
+
+    if (content.match(/^[!/]restart$/i)) {
+        log('INFO', 'Restart command received');
+        await message.reply('Restarting TinyAGI...');
+        const { exec } = require('child_process');
+        exec(`"${path.join(SCRIPT_DIR, 'lib', 'tinyagi.sh')}" restart`, { detached: true, stdio: 'ignore' });
+        return true;
+    }
+
+    return false;
+}
+
 // Initialize Discord client
 const client = new Client({
     intents: [
@@ -295,60 +355,8 @@ client.on(Events.MessageCreate, async (message: Message) => {
             return;
         }
 
-        // Check for agent list command
-        if (message.content.trim().match(/^[!/]agent$/i)) {
-            log('INFO', 'Agent list command received');
-            const agentList = getAgentListText();
-            await message.reply(agentList);
-            return;
-        }
-
-        // Check for team list command
-        if (message.content.trim().match(/^[!/]team$/i)) {
-            log('INFO', 'Team list command received');
-            const teamList = getTeamListText();
-            await message.reply(teamList);
-            return;
-        }
-
-        // Check for reset command: /reset @agent_id [@agent_id2 ...]
-        const resetMatch = messageText.trim().match(/^[!/]reset\s+(.+)$/i);
-        if (messageText.trim().match(/^[!/]reset$/i)) {
-            await message.reply('Usage: `/reset @agent_id [@agent_id2 ...]`\nSpecify which agent(s) to reset.');
-            return;
-        }
-        if (resetMatch) {
-            log('INFO', 'Per-agent reset command received');
-            const agentArgs = resetMatch[1].split(/\s+/).map(a => a.replace(/^@/, '').toLowerCase());
-            try {
-                const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
-                const settings = JSON.parse(settingsData);
-                const agents = settings.agents || {};
-                const workspacePath = settings?.workspace?.path || path.join(require('os').homedir(), 'tinyagi-workspace');
-                const resetResults: string[] = [];
-                for (const agentId of agentArgs) {
-                    if (!agents[agentId]) {
-                        resetResults.push(`Agent '${agentId}' not found.`);
-                        continue;
-                    }
-                    const flagDir = path.join(workspacePath, agentId);
-                    if (!fs.existsSync(flagDir)) fs.mkdirSync(flagDir, { recursive: true });
-                    fs.writeFileSync(path.join(flagDir, 'reset_flag'), 'reset');
-                    resetResults.push(`Reset @${agentId} (${agents[agentId].name}).`);
-                }
-                await message.reply(resetResults.join('\n'));
-            } catch {
-                await message.reply('Could not process reset command. Check settings.');
-            }
-            return;
-        }
-
-        // Check for restart command
-        if (message.content.trim().match(/^[!/]restart$/i)) {
-            log('INFO', 'Restart command received');
-            await message.reply('Restarting TinyAGI...');
-            const { exec } = require('child_process');
-            exec(`"${path.join(SCRIPT_DIR, 'lib', 'tinyagi.sh')}" restart`, { detached: true, stdio: 'ignore' });
+        // Check for text commands
+        if (await handleTextCommand(message)) {
             return;
         }
 
