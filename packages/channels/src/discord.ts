@@ -5,7 +5,7 @@
  * Does NOT call Claude directly - that's handled by queue-processor
  */
 
-import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, AttachmentBuilder } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, PublicThreadChannel, TextChannel, AttachmentBuilder } from 'discord.js';
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
@@ -42,8 +42,9 @@ if (!DISCORD_BOT_TOKEN || DISCORD_BOT_TOKEN === 'your_token_here') {
 
 interface PendingMessage {
     message: Message;
-    channel: DMChannel;
+    channel: DMChannel | PublicThreadChannel;
     timestamp: number;
+    isGuild: boolean;
 }
 
 function sanitizeFileName(fileName: string): string {
@@ -197,6 +198,7 @@ function pairingMessage(code: string): string {
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
     ],
@@ -209,7 +211,7 @@ const client = new Client({
 // Client ready
 client.on(Events.ClientReady, (readyClient) => {
     log('INFO', `Discord bot connected as ${readyClient.user.tag}`);
-    log('INFO', 'Listening for DMs...');
+    log('INFO', 'Listening for DMs and guild channels...');
 });
 
 // Message received - Write to queue
@@ -370,6 +372,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
             message: message,
             channel: message.channel as DMChannel,
             timestamp: Date.now(),
+            isGuild: false,
         });
 
         // Clean up old pending messages (older than 10 minutes)
