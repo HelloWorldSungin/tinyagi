@@ -193,25 +193,22 @@ async function processMessage(dbMsg: any): Promise<void> {
     });
 
     // ── Workflow gate ─────────────────────────────────────────────────────────
-    // Only gate when the message is a TaskNote ticker (e.g., "Arksignal-080", "ArkPoly-042")
+    // Only gate when: agent has workflow flag + message is a TaskNote ticker + not a resume
     const isTaskNoteTicker = /^(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage.trim());
-    if (!data.resume && isTaskNoteTicker) {
-        for (const [teamId, team] of Object.entries(teams)) {
-            if (team.workflow && team.agents.includes(agentId)) {
-                await sendDirectResponse(
-                    '---\n\u2705 **Awaiting deployment approval.** React with \u2705 to approve or \u274c to reject.',
-                    { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId },
-                    {
-                        workflowGate: true,
-                        teamId,
-                        agentId,
-                        originalTask: rawMessage,
-                        worktreePath: data.worktreePath,
-                    },
-                );
-                break;
-            }
-        }
+    if (!data.resume && isTaskNoteTicker && agent.workflow) {
+        // Find which team this agent belongs to (for metadata)
+        const teamId = Object.entries(teams).find(([, t]) => t.agents.includes(agentId))?.[0] || agentId;
+        await sendDirectResponse(
+            '---\n\u2705 **Awaiting deployment approval.** React with \u2705 to approve or \u274c to reject.',
+            { channel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId },
+            {
+                workflowGate: true,
+                teamId,
+                agentId,
+                originalTask: rawMessage,
+                worktreePath: data.worktreePath,
+            },
+        );
     }
 
     // ── Response routing ────────────────────────────────────────────────────
