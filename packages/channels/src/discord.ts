@@ -421,14 +421,32 @@ client.on(Events.InteractionCreate, async (interaction) => {
             }
         } else if (commandName === 'status') {
             const teamId = interaction.options.getString('team', true);
-            const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
-            const data = await res.json() as { message: string };
-            await interaction.reply(data.message);
+            // Try pipeline status first
+            const pipelineRes = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+            const pipelineData = await pipelineRes.json() as any;
+            // Try gate status
+            const gateRes = await fetch(`${API_BASE}/api/gate/waiting`);
+            const gates = (gateRes.ok ? await gateRes.json() : []) as any[];
+            const teamGates = gates.filter((g: any) => g.team_id === teamId);
+
+            let status = '';
+            if (pipelineRes.ok && pipelineData.message) {
+                status += `**Pipeline:** ${pipelineData.message}\n`;
+            }
+            if (teamGates.length > 0) {
+                for (const g of teamGates) {
+                    status += `**Gate:** ${g.original_task} — waiting for approval (agent: ${g.agent_id})\n`;
+                }
+            }
+            if (!status) {
+                status = `No active pipelines or gates for \`${teamId}\`.`;
+            }
+            await interaction.reply(status);
         } else if (commandName === 'retry') {
             const teamId = interaction.options.getString('team', true);
             const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/retry`, { method: 'POST' });
-            const data = await res.json() as { message: string };
-            await interaction.reply(data.message);
+            const data = await res.json() as any;
+            await interaction.reply(data.message || data.error || 'Done.');
         } else if (commandName === 'restart') {
             const teamId = interaction.options.getString('team', true);
             const msg = interaction.options.getString('message') || undefined;
@@ -437,8 +455,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: msg }),
             });
-            const data = await res.json() as { message: string };
-            await interaction.reply(data.message);
+            const data = await res.json() as any;
+            await interaction.reply(data.message || data.error || 'Done.');
         }
     } catch (err: any) {
         log('ERROR', `Slash command error (${commandName}): ${err.message}`);
