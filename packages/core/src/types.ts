@@ -25,6 +25,7 @@ export interface TeamConfig {
     leader_agent: string;
     mode?: 'collaborative' | 'pipeline';
     pipeline?: string[];
+    workflow?: boolean;
 }
 
 export interface Settings {
@@ -121,6 +122,8 @@ export interface MessageJobData {
     agent?: string;
     fromAgent?: string;
     pipelineRunId?: string;
+    resume?: boolean;
+    worktreePath?: string;
 }
 
 export interface ResponseJobData {
