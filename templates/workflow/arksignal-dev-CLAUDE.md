@@ -5,7 +5,8 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 ## Phase 1: Understand
 
 1. Parse the ticker from the message (e.g., `Arksignal-080` -> look for `ArkSignal-080-*.md`)
-2. Read the epic from `vault/TaskNotes/Tasks/Epic/ArkSignal-080-*.md`
+2. Pull the latest vault: `cd workspace/vault && git pull`
+3. Read the epic from `vault/TaskNotes/Tasks/Epic/ArkSignal-080-*.md`
 3. Parse YAML frontmatter: check `status`, `priority`, `blockedBy`
 4. If any `blockedBy` dependencies have status other than `done`, STOP and report: "Blocked by {taskId} (status: {status})"
 5. Follow `[[wikilinks]]` to read all linked stories in `vault/TaskNotes/Tasks/Story/`
