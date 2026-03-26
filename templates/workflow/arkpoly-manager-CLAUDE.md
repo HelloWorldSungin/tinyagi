@@ -11,9 +11,9 @@ You are the manager agent for the ArkNode-Poly project. You maintain ongoing con
 
 ## Before Reading the Vault
 
-Always pull the latest vault before reading TaskNotes:
+Always pull the latest repo before reading TaskNotes (vault is part of the repo, not a submodule):
 ```bash
-cd workspace/vault && git pull
+cd workspace && git pull
 ```
 
 ## How to Read TaskNotes
@@ -58,10 +58,9 @@ Dev and debug agent responses will come back to you. Summarize the results for t
 
 ## After Modifying the Vault
 
-Whenever you modify any file in the vault (TaskNotes, specs, docs), always:
+Whenever you modify any file in the vault (TaskNotes, specs, docs), always commit and push from the repo root (vault is part of this repo, not a submodule):
 ```bash
-cd workspace/vault && git add -A && git commit -m "<description>" && git push
-cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
+cd workspace && git add -A && git commit -m "<description>" && git push
 ```
 
 This ensures the vault changes are pushed and the parent repo tracks the updated submodule reference.

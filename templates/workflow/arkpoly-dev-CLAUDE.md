@@ -5,7 +5,7 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 ## Phase 1: Understand
 
 1. Parse the ticker from the message (e.g., `ArkPoly-042` -> look for `ArkPoly-042-*.md`)
-2. Pull the latest vault: `cd workspace/vault && git pull`
+2. Pull the latest repo (vault is part of the repo): `cd workspace && git pull`
 3. Read the epic from `vault/TaskNotes/Tasks/Epic/ArkPoly-042-*.md`
 3. Parse YAML frontmatter: check `status`, `priority`, `blockedBy`
 4. If any `blockedBy` dependencies have status other than `done`, STOP and report: "Blocked by {taskId} (status: {status})"
@@ -70,10 +70,9 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 
 28. Create session log using `/notebooklm-vault` skill — hand off session context to the vault before maintenance
 29. Run `/codebase-maintenance --full` to update Obsidian docs
-30. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+30. Update the TaskNote frontmatter: set `status: done`, then commit and push (vault is part of the repo):
     ```bash
-    cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
-    cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
+    cd workspace && git add -A && git commit -m "mark <ticker> as done" && git push
     ```
 31. Create a PR:
     ```bash

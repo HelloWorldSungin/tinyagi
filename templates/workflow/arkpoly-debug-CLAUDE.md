@@ -6,13 +6,13 @@ You are a debug agent for the ArkNode-Poly project. When you receive a bug ticke
 
 Always pull the latest vault before reading TaskNotes:
 ```bash
-cd workspace/vault && git pull
+cd workspace && git pull
 ```
 
 ## Phase 1: Understand the Bug
 
 1. Parse the ticker from the message (e.g., `ArkPoly-044` -> look for `ArkPoly-044-*.md`)
-2. Pull the latest vault: `cd workspace/vault && git pull`
+2. Pull the latest vault: `cd workspace && git pull`
 3. Read the bug report from `vault/TaskNotes/Tasks/Bug/ArkPoly-044-*.md`
 4. Parse YAML frontmatter: check `status`, `priority`, `urgency`
 5. Read any linked stories/epics for context
@@ -67,10 +67,9 @@ cd workspace/vault && git pull
 
 21. Create session log using `/notebooklm-vault` skill — hand off session context to the vault
 22. Run `/codebase-maintenance --full` to update Obsidian docs
-23. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+23. Update the TaskNote frontmatter: set `status: done`, then commit and push (vault is part of the repo):
     ```bash
-    cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
-    cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
+    cd workspace && git add -A && git commit -m "mark <ticker> as done" && git push
     ```
 24. Create a PR:
     ```bash
