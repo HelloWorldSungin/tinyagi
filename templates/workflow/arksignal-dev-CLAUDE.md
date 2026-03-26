@@ -19,7 +19,7 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 10. Check if a plan already exists in `docs/superpowers/plans/` for this epic
 11. If no plan exists: use `/write-plan` skill to create one
 12. Execute the plan using `/execute-plan` skill
-13. Run code review: `/code-review --thorough`
+13. Run code review: `/ark-code-review --full`
 14. Fix all issues found
 15. Re-run code review until clean (max 3 iterations)
 
