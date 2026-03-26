@@ -20,9 +20,10 @@ app.get('/api/pipeline/:teamId/status', (c) => {
     const active = getActivePipelineRun(teamId);
     if (active) {
         const total = active.pipeline.length;
-        const agentId = active.pipeline[active.current_stage];
+        const stage = Math.min(active.current_stage, total - 1);
+        const agentId = active.pipeline[stage] ?? 'unknown';
         return c.json({
-            message: `Pipeline @${teamId}: stage ${active.current_stage + 1}/${total} (@${agentId}) — running`,
+            message: `Pipeline @${teamId}: stage ${stage + 1}/${total} (@${agentId}) — running`,
             run: active,
         });
     }
@@ -30,12 +31,13 @@ app.get('/api/pipeline/:teamId/status', (c) => {
     const recent = getMostRecentRun(teamId);
     if (recent) {
         const total = recent.pipeline.length;
-        const agentId = recent.pipeline[recent.current_stage];
+        const stage = Math.min(recent.current_stage, total - 1);
+        const agentId = recent.pipeline[stage] ?? 'unknown';
         const statusLabel = recent.status === 'failed'
             ? `failed: ${recent.error}`
             : recent.status;
         return c.json({
-            message: `Pipeline @${teamId}: stage ${recent.current_stage + 1}/${total} (@${agentId}) — ${statusLabel}`,
+            message: `Pipeline @${teamId}: stage ${stage + 1}/${total} (@${agentId}) — ${statusLabel}`,
             run: recent,
         });
     }

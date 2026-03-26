@@ -71,24 +71,13 @@ export async function handleTeamResponse(params: {
     const { agentId, response, isTeamRouted, data, agents, teams, pipelineRunId } = params;
     const { channel, sender, messageId } = data;
 
-    // Extract and post [#team_id: message] chat room broadcasts
-    const chatRoomMsgs = extractChatRoomMessages(response, agentId, teams);
-    if (chatRoomMsgs.length > 0) {
-        log('INFO', `Chat room broadcasts from @${agentId}: ${chatRoomMsgs.map(m => `#${m.teamId}`).join(', ')}`);
-    }
-    for (const crMsg of chatRoomMsgs) {
-        postToChatRoom(crMsg.teamId, agentId, crMsg.message, teams[crMsg.teamId].agents, {
-            channel, sender, senderId: data.senderId, messageId,
-        });
-    }
-
     const teamContext = resolveTeamContext(agentId, isTeamRouted, teams);
     if (!teamContext) {
         log('DEBUG', `No team context for agent ${agentId} — falling back to direct response`);
         return false;
     }
 
-    // Pipeline mode — skip mention parsing, advance stage or complete
+    // Pipeline mode — skip mention parsing AND chat room extraction
     if (teamContext.team.mode === 'pipeline' && pipelineRunId) {
         const run = getPipelineRun(pipelineRunId);
         if (!run) {
@@ -144,6 +133,17 @@ export async function handleTeamResponse(params: {
         }
 
         return true;
+    }
+
+    // Extract and post [#team_id: message] chat room broadcasts (collaborative mode only)
+    const chatRoomMsgs = extractChatRoomMessages(response, agentId, teams);
+    if (chatRoomMsgs.length > 0) {
+        log('INFO', `Chat room broadcasts from @${agentId}: ${chatRoomMsgs.map(m => `#${m.teamId}`).join(', ')}`);
+    }
+    for (const crMsg of chatRoomMsgs) {
+        postToChatRoom(crMsg.teamId, agentId, crMsg.message, teams[crMsg.teamId].agents, {
+            channel, sender, senderId: data.senderId, messageId,
+        });
     }
 
     // Extract teammate mentions and enqueue as flat DMs

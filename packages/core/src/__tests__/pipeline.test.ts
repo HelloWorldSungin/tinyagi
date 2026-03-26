@@ -19,6 +19,7 @@ import {
     advancePipelineStage,
     completePipelineRun,
     failPipelineRun,
+    retryPipelineRun,
     getActivePipelineRun,
     getFailedPipelineRun,
     recoverRunningPipelines,
@@ -123,6 +124,25 @@ describe('pipeline CRUD', () => {
         const recent = getMostRecentRun('recent-team');
         expect(recent).not.toBeNull();
         expect(recent!.id).toBe(id2);
+    });
+
+    it('retries a failed pipeline run', () => {
+        const id = createPipelineRun('retry-team', 'discord', 'alice', undefined, 'msg_11', 'task 11', ['a', 'b']);
+        advancePipelineStage(id, 'stage 0 response');
+        failPipelineRun(id, 'stage 1 crashed');
+
+        const failed = getPipelineRun(id)!;
+        expect(failed.status).toBe('failed');
+        expect(failed.error).toBe('stage 1 crashed');
+        expect(failed.current_stage).toBe(1);
+
+        retryPipelineRun(id);
+
+        const retried = getPipelineRun(id)!;
+        expect(retried.status).toBe('running');
+        expect(retried.error).toBeNull();
+        expect(retried.current_stage).toBe(1); // stage unchanged
+        expect(retried.last_response).toBe('stage 0 response'); // preserved
     });
 
     it('returns null for non-existent run', () => {
