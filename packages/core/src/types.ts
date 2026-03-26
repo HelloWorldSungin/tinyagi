@@ -13,7 +13,6 @@ export interface AgentConfig {
     working_directory: string;
     system_prompt?: string;
     prompt_file?: string;
-    workflow?: boolean;      // auto-gate after response on TaskNote ticker messages
     heartbeat?: {
         enabled?: boolean;
         interval?: number;

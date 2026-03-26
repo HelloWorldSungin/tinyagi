@@ -31,73 +31,54 @@ cd workspace/vault && git pull
 
 ## Phase 3: Code Review
 
-10. Run code review — scale to the size of the fix:
+11. Run code review — scale to the size of the fix:
     - **Small fix (1-5 files, <50 lines changed):** Self-review only — read your diff carefully, check for regressions, verify the fix is minimal and correct. No need to spawn review agents for trivial changes.
     - **Medium fix (5-15 files or 50-200 lines):** `/ark-code-review --thorough`
     - **Large fix (15+ files or 200+ lines):** `/ark-code-review --full`
-11. Fix all issues found
-12. Re-run code review if needed (max 2 iterations)
+12. Fix all issues found
+13. Re-run code review if needed (max 2 iterations)
 
-## Phase 4: Human Gate
+## Phase 4: Deploy & Validate
 
-13. Compose a bug-fix summary including:
-    - Bug description and root cause
-    - What was fixed and why
-    - `git diff --stat` output
-    - Test/regression results
-    - Risk assessment (what could this fix break?)
-    - Before/after screenshots (if UI bug)
-14. Output the summary clearly
-15. STOP HERE. Your session will end. A human will review and react with a checkmark to approve deployment.
-
----
-
-## Phase 5: Deploy & Validate
-
-*You are resuming after human approval. Start by re-orienting.*
-
-16. Re-read the bug report and your fix to refresh context
-17. Review `git diff --stat` to remind yourself what changed
-18. Deploy to staging first:
+14. Deploy to staging first:
     ```bash
     python scripts/deployment/deploy_ct110.py --staging
     python scripts/deployment/staging_smoke_test.py
     ```
-19. If staging passes, promote to production:
+15. If staging passes, promote to production:
     ```bash
     python scripts/deployment/promote_to_production.py
     ```
-20. Capture health check output as evidence:
+16. Capture health check output as evidence:
     ```bash
     ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8811/health"
     ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8812/health"
     ssh root@192.168.68.10 "pct exec 100 -- curl -s http://localhost:8766/health"
     ```
-21. Save health check results to `./evidence/health-checks.txt`
-22. Verify the bug is fixed in production — reproduce the original steps and confirm the issue is gone
-23. Capture verification output to `./evidence/bug-verification.txt`
+17. Save health check results to `./evidence/health-checks.txt`
+18. Verify the bug is fixed in production — reproduce the original steps and confirm the issue is gone
+19. Capture verification output to `./evidence/bug-verification.txt`
 
-## Phase 6: Wrap Up
+## Phase 5: Wrap Up
 
-24. Create session log using `/notebooklm-vault` skill — hand off session context to the vault
-25. Run `/codebase-maintenance --full` to update Obsidian docs
-26. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+20. Create session log using `/notebooklm-vault` skill — hand off session context to the vault
+21. Run `/codebase-maintenance --full` to update Obsidian docs
+22. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
     ```bash
     cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
     cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
     ```
-27. Create a PR:
+23. Create a PR:
     ```bash
     gh pr create \
       --title "[ArkSignal-081] fix: <bug title>" \
       --body "## Bug\n<description>\n\n## Root Cause\n<explanation>\n\n## Fix\n<what changed and why>\n\n## Evidence\n<health checks + verification>"
     ```
-28. If evidence exists in `./evidence/`, attach as PR comments
-29. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-081-<slug>`
+24. If evidence exists in `./evidence/`, attach as PR comments
+25. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-081-<slug>`
 
 ## Rules
 
-- NEVER skip the human gate. Always stop after Phase 4.
 - NEVER propose a fix without completing root cause investigation first.
 - If deployment fails, attempt rollback: `python scripts/deployment/deploy_ct100.py --rollback <tag>`
 - If you encounter an error you can't resolve, report it clearly and stop.

@@ -192,28 +192,6 @@ async function processMessage(dbMsg: any): Promise<void> {
         isTeamMessage: isInternal || isTeamRouted,
     });
 
-    // ── Workflow gate ─────────────────────────────────────────────────────────
-    // Only gate when: agent has workflow flag + message is a TaskNote ticker + not a resume
-    const isTaskNoteTicker = /(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage);
-    if (!data.resume && isTaskNoteTicker && agent.workflow) {
-        // Find which team this agent belongs to (for metadata)
-        const teamId = Object.entries(teams).find(([, t]) => t.agents.includes(agentId))?.[0] || agentId;
-        // For internal messages (delegated from manager), use 'discord' channel
-        // so the gate message reaches Discord, not the internal queue
-        const gateChannel = isInternal ? 'discord' : channel;
-        await sendDirectResponse(
-            '---\n\u2705 **Awaiting deployment approval.** React with \u2705 to approve or \u274c to reject.',
-            { channel: gateChannel, sender, senderId: data.senderId, messageId, originalMessage: rawMessage, agentId },
-            {
-                workflowGate: true,
-                teamId,
-                agentId,
-                originalTask: rawMessage,
-                worktreePath: data.worktreePath,
-            },
-        );
-    }
-
     // ── Response routing ────────────────────────────────────────────────────
     // Team orchestration — handles team-routed, internal, and direct messages
     // to agents that belong to a team.
