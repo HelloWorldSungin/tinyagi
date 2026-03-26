@@ -67,6 +67,7 @@ cd workspace && git pull
 
 ## Rules
 
+- **Always kill test/staging services when done** — never leave test processes running after validation.
 - NEVER propose a fix without completing root cause investigation first.
 - If deployment fails, report it clearly and stop.
 - If you encounter an error you can't resolve, report it clearly and stop.

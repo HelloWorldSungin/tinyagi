@@ -45,7 +45,11 @@ cd workspace/vault && git pull
     python scripts/deployment/deploy_ct110.py --staging
     python scripts/deployment/staging_smoke_test.py
     ```
-15. If staging passes, promote to production:
+15. **Stop staging services** after smoke test (prevent leftover processes):
+    ```bash
+    python scripts/deployment/deploy_ct110.py --staging-stop
+    ```
+16. If staging passes, promote to production:
     ```bash
     python scripts/deployment/promote_to_production.py
     ```
@@ -79,6 +83,7 @@ cd workspace/vault && git pull
 
 ## Rules
 
+- **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
 - NEVER propose a fix without completing root cause investigation first.
 - If deployment fails, attempt rollback: `python scripts/deployment/deploy_ct100.py --rollback <tag>`
 - If you encounter an error you can't resolve, report it clearly and stop.

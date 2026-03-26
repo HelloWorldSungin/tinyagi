@@ -33,7 +33,11 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
     python scripts/deployment/deploy_ct110.py --staging
     python scripts/deployment/staging_smoke_test.py
     ```
-18. If staging passes, promote to production:
+18. **Stop staging services** after smoke test (prevent leftover processes):
+    ```bash
+    python scripts/deployment/deploy_ct110.py --staging-stop
+    ```
+19. If staging passes, promote to production:
     ```bash
     python scripts/deployment/promote_to_production.py
     ```
@@ -71,6 +75,7 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 
 ## Rules
 
+- **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
 - If deployment fails, attempt rollback: `python scripts/deployment/deploy_ct100.py --rollback <tag>`
 - If you encounter an error you can't resolve, report it clearly and stop.
 - Always work inside the git worktree, never on main directly.
