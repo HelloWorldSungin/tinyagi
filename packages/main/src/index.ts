@@ -194,7 +194,7 @@ async function processMessage(dbMsg: any): Promise<void> {
 
     // ── Workflow gate ─────────────────────────────────────────────────────────
     // Only gate when: agent has workflow flag + message is a TaskNote ticker + not a resume
-    const isTaskNoteTicker = /^(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage.trim());
+    const isTaskNoteTicker = /(ArkSignal|ArkPoly|ArkClaw|ArkTrade|Infra|TASK)-\d+/i.test(rawMessage);
     if (!data.resume && isTaskNoteTicker && agent.workflow) {
         // Find which team this agent belongs to (for metadata)
         const teamId = Object.entries(teams).find(([, t]) => t.agents.includes(agentId))?.[0] || agentId;
