@@ -340,12 +340,14 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
     ],
     partials: [
         Partials.Channel,
         Partials.Message,
+        Partials.Reaction,
     ],
 });
 
@@ -598,6 +600,71 @@ client.on(Events.MessageCreate, async (message: Message) => {
     }
 });
 
+// Workflow gate — reaction handler
+client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+        if (user.bot) return;
+
+        // Fetch partials if needed
+        if (reaction.partial) {
+            try { await reaction.fetch(); } catch { return; }
+        }
+        if (reaction.message.partial) {
+            try { await reaction.message.fetch(); } catch { return; }
+        }
+
+        const emoji = reaction.emoji.name;
+        if (emoji !== '✅' && emoji !== '❌') return;
+
+        const discordMessageId = reaction.message.id;
+
+        // Check if this is a gate message
+        let gateRes: Response;
+        try {
+            gateRes = await fetch(`${API_BASE}/api/gate/message/${discordMessageId}`);
+        } catch { return; }
+        if (!gateRes.ok) return;
+
+        const gate = await gateRes.json() as any;
+        if (gate.status !== 'waiting') return;
+
+        if (emoji === '✅') {
+            await fetch(`${API_BASE}/api/gate/${gate.id}/approve`, { method: 'POST' });
+
+            await fetch(`${API_BASE}/api/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channel: 'discord',
+                    sender: gate.original_task,
+                    senderId: user.id,
+                    message: 'Human approved deployment. Continue from Phase 4 (deploy). Re-read the plan and spec files to refresh context.',
+                    agent: gate.agent_id,
+                    resume: true,
+                    worktreePath: gate.worktree_path,
+                }),
+            });
+
+            log('INFO', `Gate ${gate.id} approved by ${(user as any).tag || user.id}, resuming agent ${gate.agent_id}`);
+
+            const channel = reaction.message.channel;
+            if (channel.isTextBased()) {
+                await (channel as any).send(`✅ Deployment approved by <@${user.id}>. Resuming workflow...`);
+            }
+        } else if (emoji === '❌') {
+            await fetch(`${API_BASE}/api/gate/${gate.id}/reject`, { method: 'POST' });
+            log('INFO', `Gate ${gate.id} rejected by ${(user as any).tag || user.id}`);
+
+            const channel = reaction.message.channel;
+            if (channel.isTextBased()) {
+                await (channel as any).send(`❌ Deployment rejected by <@${user.id}>. Use \`@${gate.team_id} /gate <feedback>\` to provide guidance.`);
+            }
+        }
+    } catch (error: any) {
+        log('ERROR', `Reaction handler error: ${error.message}`);
+    }
+});
+
 // Watch for responses via API
 async function checkOutgoingQueue(): Promise<void> {
     if (processingOutgoingQueue) {
@@ -663,16 +730,41 @@ async function checkOutgoingQueue(): Promise<void> {
                     // Split message if needed (Discord 2000 char limit)
                     if (responseText) {
                         const chunks = splitMessage(responseText);
+                        let sentMessage: any;
 
                         if (chunks.length > 0) {
                             if (pending && !pending.isGuild) {
-                                await pending.message.reply(chunks[0]!);
+                                sentMessage = await pending.message.reply(chunks[0]!);
                             } else {
-                                await responseChannel.send(chunks[0]!);
+                                sentMessage = await responseChannel.send(chunks[0]!);
                             }
                         }
                         for (let i = 1; i < chunks.length; i++) {
-                            await responseChannel.send(chunks[i]!);
+                            sentMessage = await responseChannel.send(chunks[i]!);
+                        }
+
+                        // Workflow gate: create gate record and add reaction
+                        if (sentMessage && resp.metadata?.workflowGate) {
+                            const meta = resp.metadata;
+                            try {
+                                await fetch(`${API_BASE}/api/gate`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        teamId: meta.teamId,
+                                        agentId: meta.agentId,
+                                        channel: 'discord',
+                                        messageId: sentMessage.id,
+                                        threadId: sentMessage.channel.isThread?.() ? sentMessage.channel.id : null,
+                                        originalTask: meta.originalTask,
+                                        worktreePath: meta.worktreePath ?? null,
+                                    }),
+                                });
+                                await sentMessage.react('✅');
+                                log('INFO', `Gate created for workflow response (Discord msg: ${sentMessage.id})`);
+                            } catch (gateErr: any) {
+                                log('ERROR', `Failed to create gate: ${gateErr.message}`);
+                            }
                         }
                     }
 
