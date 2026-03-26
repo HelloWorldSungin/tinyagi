@@ -304,8 +304,128 @@ client.on(Events.MessageCreate, async (message: Message) => {
             return;
         }
 
-        // Skip non-DM messages (guild = server channel)
+        // Guild message — check if channel is mapped to a team
         if (message.guild) {
+            const guildChannels = getGuildChannels();
+
+            // Resolve channel ID — for threads, use the parent channel ID
+            let channelId = message.channel.id;
+            let existingThread: PublicThreadChannel | null = null;
+            if (message.channel.isThread()) {
+                const parentId = message.channel.parentId;
+                if (!parentId || !guildChannels[parentId]) return;
+                channelId = parentId;
+                existingThread = message.channel as PublicThreadChannel;
+            }
+
+            if (!guildChannels[channelId]) return;
+
+            const teamId = guildChannels[channelId];
+            const hasGuildAttachments = message.attachments.size > 0;
+            const hasGuildContent = message.content && message.content.trim().length > 0;
+            if (!hasGuildContent && !hasGuildAttachments) return;
+
+            // Handle text commands before team validation and thread creation
+            // (so commands work even if team mapping is invalid)
+            if (await handleTextCommand(message)) return;
+
+            // Validate team exists in settings
+            try {
+                const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+                const settings = JSON.parse(settingsData);
+                if (!settings.teams?.[teamId]) {
+                    log('WARN', `Guild channel ${channelId} mapped to non-existent team '${teamId}', ignoring`);
+                    return;
+                }
+            } catch {
+                log('ERROR', 'Could not read settings for team validation');
+                return;
+            }
+
+            const sender = message.author.username;
+            const messageId = genId('discord-guild');
+
+            // Download attachments (same as DM path)
+            const downloadedFiles: string[] = [];
+            if (hasGuildAttachments) {
+                for (const [, attachment] of message.attachments) {
+                    try {
+                        const attachmentName = attachment.name || `discord_${messageId}_${Date.now()}.bin`;
+                        const filename = `discord_${messageId}_${attachmentName}`;
+                        const localPath = buildUniqueFilePath(FILES_DIR, filename);
+                        await downloadFile(attachment.url, localPath);
+                        downloadedFiles.push(localPath);
+                        log('INFO', `Downloaded attachment: ${path.basename(localPath)} (${attachment.contentType || 'unknown'})`);
+                    } catch (dlErr) {
+                        log('ERROR', `Failed to download attachment ${attachment.name}: ${(dlErr as Error).message}`);
+                    }
+                }
+            }
+
+            // Save original message for thread naming (before prepend)
+            const originalText = message.content || '';
+
+            // Build file references once (used for both body fallback and appending)
+            const fileRefs = downloadedFiles.length > 0
+                ? downloadedFiles.map(f => `[file: ${f}]`).join('\n')
+                : '';
+
+            // Build message with auto-routing
+            let messageText = originalText;
+            if (!messageText.startsWith('@')) {
+                const body = messageText || fileRefs || 'process attachments';
+                messageText = `@${teamId} ${body}`;
+            }
+
+            // Append file references if text + attachments (and refs weren't already used as body)
+            let fullMessage = messageText;
+            if (fileRefs && originalText) {
+                fullMessage = `${messageText}\n\n${fileRefs}`;
+            }
+
+            // Create thread or use existing one
+            let thread: PublicThreadChannel;
+            if (existingThread) {
+                thread = existingThread;
+            } else {
+                try {
+                    const threadName = buildThreadName(originalText, sender);
+                    const created = await message.startThread({ name: threadName });
+                    thread = created as PublicThreadChannel;
+                } catch (threadErr) {
+                    log('ERROR', `Failed to create thread: ${(threadErr as Error).message}`);
+                    try {
+                        await message.reply(`Could not create thread: ${(threadErr as Error).message}`);
+                    } catch { /* ignore fallback failure */ }
+                    return;
+                }
+            }
+
+            // Enqueue to API
+            await fetch(`${API_BASE}/api/message`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    channel: 'discord',
+                    sender,
+                    senderId: message.author.id,
+                    message: fullMessage,
+                    messageId,
+                }),
+            });
+
+            log('INFO', `Queued guild message ${messageId} (team: ${teamId}, thread: ${thread.id})`);
+
+            // Store pending message with thread as the channel
+            pendingMessages.set(messageId, {
+                message: message,
+                channel: thread,
+                timestamp: Date.now(),
+                isGuild: true,
+            });
+
+            // Show typing in the thread
+            await thread.sendTyping();
             return;
         }
 
