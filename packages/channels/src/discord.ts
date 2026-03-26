@@ -5,7 +5,7 @@
  * Does NOT call Claude directly - that's handled by queue-processor
  */
 
-import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, PublicThreadChannel, TextChannel, AttachmentBuilder } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Partials, Message, DMChannel, PublicThreadChannel, AttachmentBuilder } from 'discord.js';
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
@@ -395,11 +395,20 @@ client.on(Events.MessageCreate, async (message: Message) => {
                 } catch (threadErr) {
                     log('ERROR', `Failed to create thread: ${(threadErr as Error).message}`);
                     try {
-                        await message.reply(`Could not create thread: ${(threadErr as Error).message}`);
+                        await message.reply('Could not create a thread for this message. Please try again.');
                     } catch { /* ignore fallback failure */ }
                     return;
                 }
             }
+
+            // Store pending message with thread as the channel BEFORE enqueuing
+            // to avoid a race where SSE fires before the pending entry is stored
+            pendingMessages.set(messageId, {
+                message: message,
+                channel: thread,
+                timestamp: Date.now(),
+                isGuild: true,
+            });
 
             // Enqueue to API
             await fetch(`${API_BASE}/api/message`, {
@@ -415,14 +424,6 @@ client.on(Events.MessageCreate, async (message: Message) => {
             });
 
             log('INFO', `Queued guild message ${messageId} (team: ${teamId}, thread: ${thread.id})`);
-
-            // Store pending message with thread as the channel
-            pendingMessages.set(messageId, {
-                message: message,
-                channel: thread,
-                timestamp: Date.now(),
-                isGuild: true,
-            });
 
             // Show typing in the thread
             await thread.sendTyping();
@@ -564,8 +565,9 @@ async function checkOutgoingQueue(): Promise<void> {
                 let responseChannel: DMChannel | PublicThreadChannel | null = pending?.channel ?? null;
 
                 if (!responseChannel) {
-                    // Check if this was a guild message — if so, don't fallback to DM
-                    if (pending?.isGuild || messageId.startsWith('discord-guild')) {
+                    // Guild messages must not fall back to DM — detect via messageId prefix
+                    // (pending is undefined when evicted, so pending?.isGuild won't help here)
+                    if (messageId.startsWith('discord-guild')) {
                         log('WARN', `Guild message ${messageId} pending entry missing/evicted, acking without response`);
                         await fetch(`${API_BASE}/api/responses/${resp.id}/ack`, { method: 'POST' });
                         continue;
