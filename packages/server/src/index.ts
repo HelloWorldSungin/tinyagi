@@ -11,7 +11,8 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import { RESPONSE_ALREADY_SENT } from '@hono/node-server/utils/response';
-import { log } from '@tinyagi/core';
+import { log, getSettings, getAgentResetFlag } from '@tinyagi/core';
+import fs from 'fs';
 import { addSSEClient, removeSSEClient } from './sse';
 
 import messagesRoutes from './routes/messages';
@@ -59,6 +60,20 @@ export function startApiServer(): http.Server {
     app.route('/', schedulesRoutes);
     app.route('/', pipelineRoutes);
     app.route('/api/gate', gateRoutes);
+
+    // Reset agent conversation
+    app.post('/api/reset/:agentId', (c) => {
+        const agentId = c.req.param('agentId');
+        const settings = getSettings();
+        const workspacePath = settings?.workspace?.path || require('path').join(require('os').homedir(), 'tinyagi-workspace');
+        const flagPath = getAgentResetFlag(agentId, workspacePath);
+        try {
+            fs.writeFileSync(flagPath, '');
+            return c.json({ message: `Reset flag set for ${agentId}` });
+        } catch (err: any) {
+            return c.json({ error: `Failed to reset ${agentId}: ${err.message}` }, 500);
+        }
+    });
 
     // SSE endpoint — needs raw Node.js response for streaming
     app.get('/api/events/stream', (c) => {
