@@ -116,11 +116,12 @@ This eliminates the race condition of querying by team — the exact run is iden
 
 When a message arrives for a pipeline-mode team (e.g., `@dev fix the auth bug`):
 
-1. Queue processor resolves the team and detects `mode === "pipeline"`
-2. Validate no active run exists for this team (reject if one is running)
-3. Create a `pipeline_runs` row with `current_stage = 0`, store the returned `runId`
-4. Invoke the first agent in the `pipeline` array with the user's message
-5. The `runId` is stored in the message's `pipelineRunId` field so it threads through the queue
+1. Queue processor resolves the agent ID via `parseAgentRouting` or `preRoutedAgent` (existing logic, lines 63-83 of `index.ts`)
+2. **After agent resolution, before `invokeAgent`**: check if the resolved agent belongs to a pipeline-mode team. This applies to both the initial-message path (via `parseAgentRouting`) and the pipeline-progression path (via `preRoutedAgent` for subsequent stages).
+3. If pipeline mode: validate no active run exists for this team (reject if one is running). For progression messages (which have `pipelineRunId` set on the `MessageJobData`), skip this check — they're part of an already-running pipeline.
+4. Create a `pipeline_runs` row with `current_stage = 0`, store the returned `runId`
+5. Invoke the first agent in the `pipeline` array with the user's message
+6. The `runId` is stored in the message's `pipelineRunId` field so it threads through the queue
 
 ### Stage Progression (in `handleTeamResponse`)
 
@@ -229,7 +230,7 @@ On queue processor startup (in `packages/main/src/index.ts`), after `initQueueDb
 | `packages/teams/src/conversation.ts` | In `handleTeamResponse`, accept optional `pipelineRunId` param. After `resolveTeamContext` succeeds, add pipeline branch: skip mention parsing, advance stage, enqueue next agent with `pipelineRunId`. |
 | `packages/main/src/index.ts` | Detect pipeline-mode team in `processMessage`, create run before first invocation. Pass `pipelineRunId` to `handleTeamResponse`. Startup recovery (after `recoverStaleMessages`). Error handler updates pipeline run via `runId` from scope. |
 | `packages/channels/src/discord.ts` | Add pipeline command parsing (regex for `@team /retry\|restart\|status`). Handle commands via API calls to pipeline CRUD. |
-| `packages/channels/src/telegram.ts` | Same command additions. Note: Telegram uses grammy's command API, so implementation differs structurally from Discord's `handleTextCommand` pattern. |
+| `packages/channels/src/telegram.ts` | Add pipeline commands. Telegram uses inline `if/else` blocks on `msg.text` (not grammy's `/command` handler). Add `/retry`, `/restart`, `/status` to `setMyCommands` registration (lines 264-269) for autocomplete, AND handle them inline alongside the existing `/reset` and `/restart` handlers. Use the same regex pattern as Discord to parse `@team_id /command` from message text. |
 
 ## What Does NOT Change
 
