@@ -52,6 +52,8 @@ async function processMessage(dbMsg: any): Promise<void> {
         agent: dbMsg.agent ?? undefined,
         fromAgent: dbMsg.from_agent ?? undefined,
         pipelineRunId: dbMsg.pipeline_run_id ?? undefined,
+        resume: !!dbMsg.resume,
+        worktreePath: dbMsg.worktree_path ?? undefined,
     };
 
     const { channel, sender, message: rawMessage, messageId, agent: preRoutedAgent } = data;
