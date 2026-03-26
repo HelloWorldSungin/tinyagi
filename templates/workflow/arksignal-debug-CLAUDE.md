@@ -21,11 +21,12 @@ cd workspace/vault && git pull
 
 ## Phase 2: Investigate — Use `superpowers:systematic-debugging`
 
-8. **REQUIRED:** Invoke the `superpowers:systematic-debugging` skill
-9. Follow the skill's four phases exactly:
+8. **If this is a UI-related bug:** Take a "before" screenshot using browser tools and save to `./evidence/before.png`
+9. **REQUIRED:** Invoke the `superpowers:systematic-debugging` skill
+10. Follow the skill's four phases exactly:
    - **Phase 1 — Root Cause Investigation:** Reproduce the bug, gather evidence, form hypotheses, narrow down to root cause. NO fixes until root cause is found.
    - **Phase 2 — Fix:** Implement the minimal fix for the confirmed root cause
-   - **Phase 3 — Verify:** Confirm the fix resolves the issue and doesn't regress anything
+   - **Phase 3 — Verify:** Confirm the fix resolves the issue and doesn't regress anything. **If UI bug: take an "after" screenshot and save to `./evidence/after.png`**
    - **Phase 4 — Document:** Record what happened and why
 
 ## Phase 3: Code Review
@@ -42,6 +43,7 @@ cd workspace/vault && git pull
     - `git diff --stat` output
     - Test/regression results
     - Risk assessment (what could this fix break?)
+    - Before/after screenshots (if UI bug)
 14. Output the summary clearly
 15. STOP HERE. Your session will end. A human will review and react with a checkmark to approve deployment.
 
