@@ -273,6 +273,65 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         return true;
     }
 
+    // Pipeline commands: @team_id /retry|restart|status
+    const pipelineMatch = content.match(/^@(\S+)\s+[!/](retry|restart|status)(?:\s+([\s\S]*))?$/i);
+    if (pipelineMatch) {
+        const teamId = pipelineMatch[1];
+        const command = pipelineMatch[2].toLowerCase();
+        const body = pipelineMatch[3]?.trim() || '';
+
+        // Verify team is in pipeline mode
+        try {
+            const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
+            const settings = JSON.parse(settingsData);
+            const team = settings.teams?.[teamId];
+            if (!team || team.mode !== 'pipeline') {
+                return false; // Not a pipeline team — pass through as normal message
+            }
+        } catch {
+            return false;
+        }
+
+        log('INFO', `Pipeline command: @${teamId} /${command}`);
+
+        try {
+            if (command === 'status') {
+                const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+                const data = await res.json() as { message: string };
+                await message.reply(data.message);
+            } else if (command === 'retry') {
+                const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/retry`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        channel: 'discord',
+                        sender: message.author.username,
+                        senderId: message.author.id,
+                    }),
+                });
+                const data = await res.json() as { message: string };
+                await message.reply(data.message);
+            } else if (command === 'restart') {
+                const res = await fetch(`${API_BASE}/api/pipeline/${teamId}/restart`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        message: body || undefined,
+                        channel: 'discord',
+                        sender: message.author.username,
+                        senderId: message.author.id,
+                    }),
+                });
+                const data = await res.json() as { message: string };
+                await message.reply(data.message);
+            }
+        } catch (err) {
+            log('ERROR', `Pipeline command error: ${(err as Error).message}`);
+            await message.reply('Could not process pipeline command. Is the queue processor running?');
+        }
+        return true;
+    }
+
     return false;
 }
 
