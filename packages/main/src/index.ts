@@ -152,6 +152,8 @@ async function processMessage(dbMsg: any): Promise<void> {
     try {
         response = await invokeAgent(agent, agentId, message, workspacePath, shouldReset, agents, teams, (text) => {
             log('INFO', `Agent ${agentId}: ${text}`);
+            // Skip tool-use-only events (e.g., "[tool: Bash]") — don't send to Discord
+            if (/^\[tool: .+\]$/.test(text.trim())) return;
             insertAgentMessage({ agentId, role: 'assistant', channel, sender: agentId, messageId, content: text });
             emitEvent('agent:progress', { agentId, agentName: agent.name, text, messageId });
             sendDirectResponse(text, {
