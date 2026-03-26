@@ -881,7 +881,10 @@ async function checkOutgoingQueue(): Promise<void> {
 
                     log('INFO', `Sent ${pending ? 'response' : 'proactive message'} to ${sender} (${responseText.length} chars${files.length > 0 ? `, ${files.length} file(s)` : ''})`);
 
-                    if (pending) pendingMessages.delete(messageId);
+                    // Keep pending entry alive for guild messages so subsequent
+                    // streaming responses can still deliver to the thread.
+                    // The 10-minute cleanup will evict it eventually.
+                    if (pending && !pending.isGuild) pendingMessages.delete(messageId);
                     await fetch(`${API_BASE}/api/responses/${resp.id}/ack`, { method: 'POST' });
                 } else {
                     log('WARN', `No pending message for ${messageId} and no senderId, acking`);
