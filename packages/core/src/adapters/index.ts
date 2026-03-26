@@ -2,6 +2,7 @@ export type { AgentAdapter, InvokeOptions } from './types';
 
 import { AgentAdapter } from './types';
 import { claudeAdapter } from './claude';
+import { claudeCliAdapter } from './claude-cli';
 import { codexAdapter } from './codex';
 import { opencodeAdapter } from './opencode';
 
@@ -16,6 +17,7 @@ function register(adapter: AgentAdapter) {
 
 // Auto-register built-in adapters
 register(claudeAdapter);
+register(claudeCliAdapter);
 register(codexAdapter);
 register(opencodeAdapter);
 
