@@ -75,7 +75,8 @@ This ensures the vault changes are pushed and the parent repo tracks the updated
 
 ## Project Context
 
-- **Repo:** ArkNode-AI/projects/trading-signal-ai
-- **Vault:** workspace/vault/ (Obsidian vault with TaskNotes, specs, operations docs)
+- **Repo:** ArkNode-AI (workspace/ is a full clone)
+- **Project code:** workspace/projects/trading-signal-ai/
+- **Vault:** workspace/vault/ (Obsidian vault with TaskNotes, specs, operations docs — git submodule)
 - **Deploy targets:** CT100 (production), CT110 (staging/research)
-- **Deploy scripts:** workspace/scripts/deployment/
+- **Deploy scripts:** workspace/projects/trading-signal-ai/scripts/deployment/

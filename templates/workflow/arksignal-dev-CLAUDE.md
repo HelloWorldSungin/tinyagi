@@ -30,12 +30,12 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 
 17. Deploy to staging and run smoke tests:
     ```bash
-    python scripts/deployment/deploy_ct110.py --staging
-    python scripts/deployment/staging_smoke_test.py
+    python workspace/projects/trading-signal-ai/scripts/deployment/deploy_ct110.py --staging
+    python workspace/projects/trading-signal-ai/scripts/deployment/staging_smoke_test.py
     ```
 18. **Stop staging services** after testing:
     ```bash
-    python scripts/deployment/deploy_ct110.py --staging-stop
+    python workspace/projects/trading-signal-ai/scripts/deployment/deploy_ct110.py --staging-stop
     ```
 19. Run QA via Pi CLI:
     ```bash

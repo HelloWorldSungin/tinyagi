@@ -42,12 +42,12 @@ cd workspace/vault && git pull
 
 14. Deploy to staging and run smoke tests:
     ```bash
-    python scripts/deployment/deploy_ct110.py --staging
-    python scripts/deployment/staging_smoke_test.py
+    python workspace/projects/trading-signal-ai/scripts/deployment/deploy_ct110.py --staging
+    python workspace/projects/trading-signal-ai/scripts/deployment/staging_smoke_test.py
     ```
 15. **Stop staging services** after testing:
     ```bash
-    python scripts/deployment/deploy_ct110.py --staging-stop
+    python workspace/projects/trading-signal-ai/scripts/deployment/deploy_ct110.py --staging-stop
     ```
 16. Verify the bug is fixed on staging — reproduce the original steps and confirm the issue is gone
 17. Capture verification output to `./evidence/bug-verification.txt`
