@@ -31,9 +31,12 @@ cd workspace && git pull
 
 ## Phase 3: Code Review
 
-10. Run code review: `/ark-code-review --full`
+10. Run code review — scale to the size of the fix:
+    - **Small fix (1-5 files, <50 lines changed):** Self-review only — read your diff carefully, check for regressions, verify the fix is minimal and correct. No need to spawn review agents for trivial changes.
+    - **Medium fix (5-15 files or 50-200 lines):** `/ark-code-review --thorough`
+    - **Large fix (15+ files or 200+ lines):** `/ark-code-review --full`
 11. Fix all issues found
-12. Re-run code review until clean (max 3 iterations)
+12. Re-run code review if needed (max 2 iterations)
 
 ## Phase 4: Human Gate
 
