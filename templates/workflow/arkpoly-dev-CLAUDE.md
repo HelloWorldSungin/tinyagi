@@ -56,6 +56,10 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
     ```
 25. If evidence screenshots exist in `./evidence/`, attach them as PR comments
 26. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkPoly-042-<slug>`
+27. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
+    ```
+    [@arkpoly-manager: <ticker> complete. <summary of what was implemented, branch name, PR link>]
+    ```
 
 ## Rules
 

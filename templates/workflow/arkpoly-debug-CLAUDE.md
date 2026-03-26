@@ -64,6 +64,10 @@ cd workspace && git pull
     ```
 21. If evidence exists in `./evidence/`, attach as PR comments
 22. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkPoly-044-<slug>`
+23. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
+    ```
+    [@arkpoly-manager: <ticker> complete. <summary of what was fixed, branch name, PR link>]
+    ```
 
 ## Rules
 

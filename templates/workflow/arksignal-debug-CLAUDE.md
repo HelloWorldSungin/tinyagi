@@ -69,6 +69,10 @@ cd workspace/vault && git pull
     ```
 24. If evidence exists in `./evidence/`, attach as PR comments
 25. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-081-<slug>`
+26. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
+    ```
+    [@arksignal-manager: <ticker> complete. <summary of what was fixed, branch name, PR link>]
+    ```
 
 ## Rules
 

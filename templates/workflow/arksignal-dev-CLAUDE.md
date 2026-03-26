@@ -61,6 +61,10 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
     ```
 28. If evidence screenshots exist in `./evidence/`, attach them as PR comments
 29. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-080-<slug>`
+30. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
+    ```
+    [@arksignal-manager: <ticker> complete. <summary of what was implemented, branch name, PR link>]
+    ```
 
 ## Rules
 
