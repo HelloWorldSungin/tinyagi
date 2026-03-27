@@ -14,7 +14,7 @@ import {
     log, emitEvent,
     parseAgentRouting, getAgentResetFlag,
     invokeAgent, killAgentProcess,
-    loadPlugins, runIncomingHooks,
+    loadPlugins, runIncomingHooks, runHandleMessageHooks,
     streamResponse,
     initQueueDb, getPendingAgents, claimAllPendingMessages,
     markProcessing, completeMessage, failMessage,
@@ -59,6 +59,13 @@ async function processMessage(dbMsg: any): Promise<void> {
 
     const { channel, sender, message: rawMessage, messageId, agent: preRoutedAgent } = data;
     const isInternal = !!data.fromAgent;
+
+    // Let plugins intercept before normal processing
+    const handled = await runHandleMessageHooks(data as any, {
+        channel, sender, messageId, originalMessage: rawMessage,
+        emitEvent: (type, eventData) => emitEvent(type, eventData),
+    });
+    if (handled) return;
 
     log('INFO', `Processing [${isInternal ? 'internal' : channel}] ${isInternal ? `@${data.fromAgent}→@${preRoutedAgent}` : `from ${sender}`}: ${rawMessage}`);
 

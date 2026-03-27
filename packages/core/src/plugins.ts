@@ -8,7 +8,7 @@
 import fs from 'fs';
 import path from 'path';
 import { TINYAGI_HOME } from './config';
-import { log, onEvent } from './logging';
+import { log, onEvent, emitEvent } from './logging';
 
 // Types
 export interface PluginEvent {
@@ -34,15 +34,22 @@ export interface HookResult {
     metadata: HookMetadata;
 }
 
+export interface HandleMessageContext extends HookContext {
+    emitEvent(type: string, data: Record<string, unknown>): void;
+}
+
 export interface Hooks {
     transformOutgoing?(message: string, ctx: HookContext): string | HookResult | Promise<string | HookResult>;
     transformIncoming?(message: string, ctx: HookContext): string | HookResult | Promise<string | HookResult>;
+    /** Intercept a message before normal processing. Return true if handled (skip normal processing). */
+    handleMessage?(data: Record<string, unknown>, ctx: HandleMessageContext): Promise<boolean>;
 }
 
 export interface PluginContext {
     on(eventType: string | '*', handler: (event: PluginEvent) => void): void;
     log(level: string, message: string): void;
     getTinyAGIHome(): string;
+    emitEvent(type: string, data: Record<string, unknown>): void;
 }
 
 interface LoadedPlugin {
@@ -69,6 +76,9 @@ function createPluginContext(pluginName: string): PluginContext {
         },
         getTinyAGIHome(): string {
             return TINYAGI_HOME;
+        },
+        emitEvent(type: string, data: Record<string, unknown>): void {
+            emitEvent(type, data);
         },
     };
 }
@@ -194,6 +204,29 @@ export async function runIncomingHooks(message: string, ctx: HookContext): Promi
     }
 
     return { text, metadata };
+}
+
+/**
+ * Run handleMessage hooks. Returns true if any plugin consumed the message.
+ */
+export async function runHandleMessageHooks(
+    data: Record<string, unknown>,
+    hookCtx: HandleMessageContext,
+): Promise<boolean> {
+    for (const plugin of loadedPlugins) {
+        if (plugin.hooks?.handleMessage) {
+            try {
+                const handled = await plugin.hooks.handleMessage(data, hookCtx);
+                if (handled) {
+                    log('INFO', `Plugin '${plugin.name}' handled message`);
+                    return true;
+                }
+            } catch (error) {
+                log('ERROR', `Plugin '${plugin.name}' handleMessage error: ${(error as Error).message}`);
+            }
+        }
+    }
+    return false;
 }
 
 /**
