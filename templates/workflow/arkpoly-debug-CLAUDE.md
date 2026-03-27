@@ -52,10 +52,10 @@ cd workspace && git pull
 15. Verify the bug is fixed — reproduce the original steps and confirm the issue is gone
 16. Capture verification output to `./evidence/bug-verification.txt`
 
-## Phase 5: Wrap Up
+## Phase 5: Wrap Up — DO NOT SKIP ANY STEP
 
-17. Create session log using `/notebooklm-vault` skill — hand off session context to the vault
-18. Run `/codebase-maintenance --full` to update Obsidian docs
+17. **REQUIRED:** Create session log using `/notebooklm-vault` skill
+18. **REQUIRED:** Run `/codebase-maintenance --full` to update Obsidian docs
 19. Update the TaskNote frontmatter: set `status: done`, then commit and push (vault is part of the repo):
     ```bash
     cd workspace && git add -A && git commit -m "mark <ticker> as done" && git push

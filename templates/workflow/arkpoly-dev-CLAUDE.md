@@ -46,13 +46,13 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 19. Capture Pi's output to `./evidence/qa-review.txt`
 20. If Pi finds issues: fix them, re-deploy, re-QA (max 2 iterations)
 
-## Phase 4: Wrap Up
+## Phase 4: Wrap Up — DO NOT SKIP ANY STEP
 
-21. Create session log using `/notebooklm-vault` skill — hand off session context to the vault before maintenance
-22. Run `/codebase-maintenance --full` to update Obsidian docs
+21. **REQUIRED:** Create session log using `/notebooklm-vault` skill
+22. **REQUIRED:** Run `/codebase-maintenance --full` to update Obsidian docs
 23. Update the TaskNote frontmatter: set `status: done`, then commit and push (vault is part of the repo):
     ```bash
-    cd workspace && git add -A && git commit -m "mark <ticker> as done" && git push
+    git add -A && git commit -m "mark <ticker> as done" && git push
     ```
 24. Create a PR:
     ```bash

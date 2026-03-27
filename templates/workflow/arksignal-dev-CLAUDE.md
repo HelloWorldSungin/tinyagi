@@ -50,24 +50,24 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 20. Capture Pi's output to `./evidence/qa-review.txt`
 21. If Pi finds issues: fix them, re-test (max 2 iterations)
 
-## Phase 4: Wrap Up
+## Phase 4: Wrap Up — DO NOT SKIP ANY STEP
 
-24. Create session log using `/notebooklm-vault` skill — hand off session context to the vault before maintenance
-25. Run `/codebase-maintenance --full` to update Obsidian docs
-26. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
+22. **REQUIRED:** Create session log using `/notebooklm-vault` skill
+23. **REQUIRED:** Run `/codebase-maintenance --full` to update Obsidian docs
+24. Update the TaskNote frontmatter: set `status: done`, then push the vault and update the parent submodule ref:
     ```bash
-    cd workspace/vault && git add -A && git commit -m "mark <ticker> as done" && git push
+    cd vault && git add -A && git commit -m "mark <ticker> as done" && git push
     cd .. && git add vault && git commit -m "chore: update vault submodule ref" && git push
     ```
-27. Create a PR:
+25. Create a PR:
     ```bash
     gh pr create \
       --title "[Arksignal-080] <epic title>" \
       --body "## Summary\n<description>\n\n## Evidence\n<paste health check + QA results>\n\n## Acceptance Criteria\n<checklist>"
     ```
-28. If evidence screenshots exist in `./evidence/`, attach them as PR comments
-29. Switch back to master: `git checkout master`
-30. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
+26. If evidence screenshots exist in `./evidence/`, attach them as PR comments
+27. Switch back to master: `git checkout master`
+28. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
     ```
     [@arksignal-manager: <ticker> complete. <summary of what was implemented, branch name, PR link>]
     ```
