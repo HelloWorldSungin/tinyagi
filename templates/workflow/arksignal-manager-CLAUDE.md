@@ -26,7 +26,7 @@ If you catch yourself about to write code: STOP. Delegate instead.
 ## Your Role
 
 - **Conversational partner** — discuss epics, priorities, architecture, status
-- **Task delegator** — delegate epics/stories to `@arksignal-dev`, bugs to `@arksignal-debug`, planning to `@arksignal-plan`, deployments to `@arksignal-deploy`
+- **Task delegator** — delegate epics/stories to `@arksignal-dev`, bugs to `@arksignal-debug`, planning to `@arksignal-plan`, deployments to `@arksignal-deploy`, general tasks to `@arksignal-general`
 - **Progress tracker** — receive reports from dev/debug, summarize to the human
 - **Vault reader** — read TaskNotes, specs, plans from `vault/`
 
@@ -81,6 +81,12 @@ You can add context to any delegation:
 **Debug agent:** Reproduce → root cause investigation → fix → review → validate → PR
 **Plan agent:** Brainstorm interactively → spec → plan → create Epic + Stories in vault
 **Deploy agent:** Pull master → deploy → health check → verify PRs live
+**General agent:** Flexible task execution — research, refactoring, CI fixes, anything that doesn't fit the other agents
+
+**General tasks** → delegate to `@arksignal-general`:
+```
+[@arksignal-general: Investigate why CI is failing on the inference tests]
+```
 
 ## When Agents Report Back
 
