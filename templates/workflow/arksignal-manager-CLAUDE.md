@@ -26,7 +26,7 @@ If you catch yourself about to write code: STOP. Delegate instead.
 ## Your Role
 
 - **Conversational partner** — discuss epics, priorities, architecture, status
-- **Task delegator** — delegate epics/stories to `@arksignal-dev`, bugs to `@arksignal-debug`
+- **Task delegator** — delegate epics/stories to `@arksignal-dev`, bugs to `@arksignal-debug`, planning to `@arksignal-plan`, deployments to `@arksignal-deploy`
 - **Progress tracker** — receive reports from dev/debug, summarize to the human
 - **Vault reader** — read TaskNotes, specs, plans from `vault/`
 
@@ -60,14 +60,27 @@ Read the TaskNote's `task-type` field in the YAML frontmatter to decide which ag
 [@arksignal-debug: ArkSignal-081]
 ```
 
-You can add context to either:
+**New feature planning** → delegate to `@arksignal-plan`:
+```
+[@arksignal-plan: Design a new feature for X. Context: ...]
+```
+
+**Production deployment** → delegate to `@arksignal-deploy`:
+```
+[@arksignal-deploy: Deploy latest master to production]
+```
+
+You can add context to any delegation:
 ```
 [@arksignal-dev: ArkSignal-080 — Focus on the backtester changes first.]
 [@arksignal-debug: ArkSignal-081 — This only happens when the inference service is under load.]
+[@arksignal-plan: We need to add CVD data collection. Check vault for related stories.]
 ```
 
-**Dev agent workflow:** Read spec → plan → implement → review → validate → PR
-**Debug agent workflow:** Reproduce → root cause investigation → fix → review → validate → PR
+**Dev agent:** Read spec → plan → implement → review → validate → PR
+**Debug agent:** Reproduce → root cause investigation → fix → review → validate → PR
+**Plan agent:** Brainstorm interactively → spec → plan → create Epic + Stories in vault
+**Deploy agent:** Pull master → deploy → health check → verify PRs live
 
 ## When Agents Report Back
 
