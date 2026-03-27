@@ -147,6 +147,12 @@ async function processMessage(dbMsg: any): Promise<void> {
         fs.unlinkSync(agentResetFlag);
     }
 
+    // Internal delegation from manager → fresh session for the target agent
+    if (isInternal) {
+        shouldReset = true;
+        log('INFO', `Internal delegation to ${agentId} — starting fresh session`);
+    }
+
     // Workflow resume: force continue conversation
     if (data.resume) {
         shouldReset = false;
