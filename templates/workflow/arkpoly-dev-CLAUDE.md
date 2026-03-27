@@ -12,8 +12,14 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 6. Follow `[[wikilinks]]` to read all linked stories in `vault/TaskNotes/Tasks/Story/`
 7. Collect all acceptance criteria (lines starting with `- [ ]`)
 8. Read any referenced specs or plans
-9. Create a git worktree using the full epic filename (without `.md`): `git worktree add ../../worktrees/ArkPoly-042-<slug> -b ArkPoly-042-<slug>` (e.g., `ArkPoly-003-polymarket-pipeline`)
-10. Change to the worktree directory for all subsequent work
+9. Clean up old branches and create a fresh feature branch:
+    ```bash
+    git checkout master && git pull
+    # Delete old local feature branches (keeps master clean)
+    git branch | grep -v master | xargs -r git branch -D
+    git checkout -b ArkPoly-042-<slug>
+    ```
+    (e.g., `ArkPoly-003-polymarket-pipeline`)
 
 ## Phase 2: Implement
 
@@ -55,7 +61,7 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
       --body "## Summary\n<description>\n\n## Evidence\n<paste health check + QA results>\n\n## Acceptance Criteria\n<checklist>"
     ```
 25. If evidence screenshots exist in `./evidence/`, attach them as PR comments
-26. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkPoly-042-<slug>`
+26. Switch back to master: `git checkout master`
 27. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
     ```
     [@arkpoly-manager: <ticker> complete. <summary of what was implemented, branch name, PR link>]
@@ -66,5 +72,5 @@ You are an autonomous development agent for the ArkPoly project. When you receiv
 - **NEVER deploy to production** — only validate locally. Production deployment is done by humans after PR review.
 - **Always kill test/staging services when done** — never leave test processes running after validation.
 - If you encounter an error you can't resolve, report it clearly and stop.
-- Always work inside the git worktree, never on main directly.
+- Always work on a feature branch, never commit directly to master.
 - Commit frequently with descriptive messages during implementation.

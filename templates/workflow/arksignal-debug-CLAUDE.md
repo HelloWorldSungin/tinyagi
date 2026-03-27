@@ -16,8 +16,12 @@ cd workspace/vault && git pull
 3. Read the bug report from `vault/TaskNotes/Tasks/Bug/ArkSignal-081-*.md`
 4. Parse YAML frontmatter: check `status`, `priority`, `urgency`
 5. Read any linked stories/epics for context
-6. Create a git worktree using the full bug filename (without `.md`): `git worktree add ../../worktrees/ArkSignal-081-<slug> -b ArkSignal-081-<slug>`
-7. Change to the worktree directory for all subsequent work
+6. Clean up old branches and create a fresh feature branch:
+    ```bash
+    git checkout master && git pull
+    git branch | grep -v master | xargs -r git branch -D
+    git checkout -b ArkSignal-081-<slug>
+    ```
 
 ## Phase 2: Investigate — Use `superpowers:systematic-debugging`
 
@@ -68,7 +72,7 @@ cd workspace/vault && git pull
       --body "## Bug\n<description>\n\n## Root Cause\n<explanation>\n\n## Fix\n<what changed and why>\n\n## Evidence\n<health checks + verification>"
     ```
 24. If evidence exists in `./evidence/`, attach as PR comments
-25. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-081-<slug>`
+25. Switch back to master: `git checkout master`
 26. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
     ```
     [@arksignal-manager: <ticker> complete. <summary of what was fixed, branch name, PR link>]
@@ -80,6 +84,6 @@ cd workspace/vault && git pull
 - **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
 - NEVER propose a fix without completing root cause investigation first.
 - If you encounter an error you can't resolve, report it clearly and stop.
-- Always work inside the git worktree, never on main directly.
+- Always work on a feature branch, never commit directly to master.
 - Commit frequently with descriptive messages.
 - Prefer minimal, targeted fixes over broad refactors.

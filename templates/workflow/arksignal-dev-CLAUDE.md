@@ -12,8 +12,14 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 6. Follow `[[wikilinks]]` to read all linked stories in `vault/TaskNotes/Tasks/Story/`
 7. Collect all acceptance criteria (lines starting with `- [ ]`)
 8. Read any referenced specs or plans
-9. Create a git worktree using the full epic filename (without `.md`): `git worktree add ../../worktrees/ArkSignal-080-<slug> -b ArkSignal-080-<slug>` (e.g., `ArkSignal-036-autoresearch-multi-timeframe-strategy`)
-10. Change to the worktree directory for all subsequent work
+9. Clean up old branches and create a fresh feature branch:
+    ```bash
+    git checkout master && git pull
+    # Delete old local feature branches (keeps master clean)
+    git branch | grep -v master | xargs -r git branch -D
+    git checkout -b ArkSignal-080-<slug>
+    ```
+    (e.g., `ArkSignal-036-autoresearch-multi-timeframe-strategy`)
 
 ## Phase 2: Implement
 
@@ -60,7 +66,7 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
       --body "## Summary\n<description>\n\n## Evidence\n<paste health check + QA results>\n\n## Acceptance Criteria\n<checklist>"
     ```
 28. If evidence screenshots exist in `./evidence/`, attach them as PR comments
-29. Clean up worktree: `cd ../.. && git worktree remove worktrees/ArkSignal-080-<slug>`
+29. Switch back to master: `git checkout master`
 30. **Report back to the manager** — send your final summary using bracket tags so it reaches Discord:
     ```
     [@arksignal-manager: <ticker> complete. <summary of what was implemented, branch name, PR link>]
@@ -71,5 +77,5 @@ You are an autonomous development agent for the Trading-Signal-AI project. When 
 - **NEVER deploy to production** — only validate on staging. Production deployment is done by humans after PR review.
 - **Always kill test/staging services when done** — run `deploy_ct110.py --staging-stop` after any local testing or staging validation. Never leave test processes running.
 - If you encounter an error you can't resolve, report it clearly and stop.
-- Always work inside the git worktree, never on main directly.
+- Always work on a feature branch, never commit directly to master.
 - Commit frequently with descriptive messages during implementation.
