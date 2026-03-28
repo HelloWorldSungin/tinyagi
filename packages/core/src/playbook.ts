@@ -351,8 +351,12 @@ export function formatStageMessage(
     const parts: string[] = [];
 
     // Header
-    const skillsList = stage.skills.join(', ');
-    parts.push(`[playbook:${playbook.intent} stage:${stageIndex + 1}/${totalStages}] Execute ${skillsList} for:`);
+    const prefix = `[playbook:${playbook.intent} stage:${stageIndex + 1}/${totalStages}]`;
+    if (stage.skills.length > 0) {
+        parts.push(`${prefix} Execute ${stage.skills.join(', ')} for:`);
+    } else {
+        parts.push(`${prefix} Complete the following task:`);
+    }
     parts.push('');
     parts.push(description);
 
@@ -453,27 +457,12 @@ export function startPlaybookRun(
 
 // ── CRUD ───────────────────────────────────────────────────────────────────
 
+/**
+ * No-op — the playbook_runs table is created in initQueueDb() (queues.ts).
+ * Kept for API consistency with initPipelineDb / initGateDb.
+ */
 export function initPlaybookDb(): void {
-    const db = getDb();
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS playbook_runs (
-            id TEXT PRIMARY KEY,
-            pipeline_run_id TEXT NOT NULL,
-            team_id TEXT NOT NULL,
-            intent TEXT NOT NULL,
-            description TEXT NOT NULL,
-            task_note_ref TEXT,
-            playbook_status TEXT NOT NULL DEFAULT 'running',
-            stages_json TEXT NOT NULL,
-            current_stage_name TEXT NOT NULL,
-            metrics_json TEXT,
-            skip_plan INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_playbook_team ON playbook_runs(team_id, playbook_status);
-        CREATE INDEX IF NOT EXISTS idx_playbook_pipeline ON playbook_runs(pipeline_run_id);
-    `);
+    // Table already created by initQueueDb()
 }
 
 export function getPlaybookRun(runId: string): PlaybookRun | null {

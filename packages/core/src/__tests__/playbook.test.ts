@@ -275,6 +275,21 @@ describe('formatStageMessage', () => {
 
         expect(msg).toContain('Execute /systematic-debugging, /investigate for:');
     });
+
+    it('uses fallback header when skills array is empty', () => {
+        const stage: PlaybookStage = {
+            name: 'pr-creation',
+            agent: 'dev',
+            skills: [],
+            on_failure: 'halt',
+        };
+
+        const msg = formatStageMessage(playbook, stage, 2, 4, 'Create the PR');
+
+        expect(msg).toContain('[playbook:feature stage:3/4] Complete the following task:');
+        expect(msg).not.toContain('Execute');
+        expect(msg).toContain('Create the PR');
+    });
 });
 
 // ── startPlaybookRun + CRUD tests ──────────────────────────────────────────

@@ -27,6 +27,7 @@ import {
     recoverRunningPipelines, enqueueMessage, genId,
     hasPendingPipelineMessage,
     initGateDb, expireStaleGates,
+    initPlaybookDb,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -312,6 +313,9 @@ initPipelineDb();
 
 // Initialize workflow gate table
 initGateDb();
+
+// Initialize playbook table
+initPlaybookDb();
 
 // Recover interrupted pipeline runs
 const runningPipelines = recoverRunningPipelines();
