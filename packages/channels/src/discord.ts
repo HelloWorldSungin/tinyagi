@@ -273,6 +273,55 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         return true;
     }
 
+    // Playbook /run command: @team_id /run intent description [--skip-plan] [--include-plan]
+    const runMatch = content.match(/^@(\S+)\s+[!/]run\s+(\S+)(?:\s+([\s\S]*))?$/i);
+    if (runMatch) {
+        const teamId = runMatch[1];
+        const intent = runMatch[2];
+        let rest = runMatch[3]?.trim() || '';
+
+        // Parse flags
+        const skipPlan = rest.includes('--skip-plan');
+        const includePlan = rest.includes('--include-plan');
+        rest = rest.replace(/--skip-plan/g, '').replace(/--include-plan/g, '').trim();
+
+        // Check if the rest looks like a TaskNote reference (e.g., ArkPoly-085)
+        const taskNoteMatch = rest.match(/^(Ark\w+-\d+)(?:\s+(.*))?$/i);
+        const taskNoteRef = taskNoteMatch ? taskNoteMatch[1] : undefined;
+        const description = taskNoteMatch ? (taskNoteMatch[2] || taskNoteMatch[1]) : rest;
+
+        log('INFO', `Playbook /run command: @${teamId} intent=${intent}`);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/playbook/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teamId,
+                    intent,
+                    description: description || intent,
+                    taskNoteRef,
+                    skipPlan,
+                    includePlan,
+                    channel: 'discord',
+                    sender: message.author.username,
+                    senderId: message.author.id,
+                    messageId: message.id,
+                }),
+            });
+            const data = await res.json() as any;
+            if (res.ok) {
+                await message.reply(`\u{1F680} ${data.message}`);
+            } else {
+                await message.reply(`\u274C Playbook error: ${data.error}`);
+            }
+        } catch (err) {
+            log('ERROR', `Playbook run error: ${(err as Error).message}`);
+            await message.reply('Could not start playbook run. Is the queue processor running?');
+        }
+        return true;
+    }
+
     // Pipeline commands: @team_id /retry|restart|status
     const pipelineMatch = content.match(/^@(\S+)\s+[!/](retry|restart|status)(?:\s+([\s\S]*))?$/i);
     if (pipelineMatch) {
