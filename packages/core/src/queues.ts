@@ -60,24 +60,6 @@ export function initQueueDb(): void {
         CREATE INDEX IF NOT EXISTS idx_resp_channel ON responses(channel, status);
         CREATE INDEX IF NOT EXISTS idx_chat_team ON chat_messages(team_id, id);
         CREATE INDEX IF NOT EXISTS idx_agent_messages_agent ON agent_messages(agent_id, created_at);
-
-        CREATE TABLE IF NOT EXISTS playbook_runs (
-            id TEXT PRIMARY KEY,
-            pipeline_run_id TEXT NOT NULL,
-            team_id TEXT NOT NULL,
-            intent TEXT NOT NULL,
-            description TEXT NOT NULL,
-            task_note_ref TEXT,
-            playbook_status TEXT NOT NULL DEFAULT 'running',
-            stages_json TEXT NOT NULL,
-            current_stage_name TEXT NOT NULL,
-            metrics_json TEXT,
-            skip_plan INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_playbook_team ON playbook_runs(team_id, playbook_status);
-        CREATE INDEX IF NOT EXISTS idx_playbook_pipeline ON playbook_runs(pipeline_run_id);
     `);
 
     // Migrations for existing databases

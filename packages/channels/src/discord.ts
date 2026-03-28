@@ -288,7 +288,9 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         // Check if the rest looks like a TaskNote reference (e.g., ArkPoly-085)
         const taskNoteMatch = rest.match(/^(Ark\w+-\d+)(?:\s+(.*))?$/i);
         const taskNoteRef = taskNoteMatch ? taskNoteMatch[1] : undefined;
-        const description = taskNoteMatch ? (taskNoteMatch[2] || taskNoteMatch[1]) : rest;
+        const description = taskNoteMatch
+            ? (taskNoteMatch[2]?.trim() || `Implement ${taskNoteMatch[1]}`)
+            : rest;
 
         log('INFO', `Playbook /run command: @${teamId} intent=${intent}`);
 
@@ -350,7 +352,8 @@ async function handleTextCommand(message: Message): Promise<boolean> {
                     return false;
                 }
             }
-        } catch {
+        } catch (err) {
+            log('WARN', `Pipeline pre-flight check failed for team ${teamId}: ${(err as Error).message}`);
             return false;
         }
 

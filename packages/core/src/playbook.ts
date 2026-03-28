@@ -239,9 +239,7 @@ export function resolvePlaybook(
                 planningArtifacts = planningLinks;
             }
             stages = stages.filter(s => s.skip_if !== 'planned');
-        }
-        // If planning is 'in-progress', keep all stages (planning artifacts used as context)
-        if (planningStatus === 'in-progress') {
+        } else if (planningStatus === 'in-progress') {
             const planningLinks = readTaskNotePlanningArtifacts(agents, stages, taskNoteRef);
             if (planningLinks.length > 0) {
                 planningArtifacts = planningLinks;
@@ -457,12 +455,27 @@ export function startPlaybookRun(
 
 // ── CRUD ───────────────────────────────────────────────────────────────────
 
-/**
- * No-op — the playbook_runs table is created in initQueueDb() (queues.ts).
- * Kept for API consistency with initPipelineDb / initGateDb.
- */
 export function initPlaybookDb(): void {
-    // Table already created by initQueueDb()
+    const db = getDb();
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS playbook_runs (
+            id TEXT PRIMARY KEY,
+            pipeline_run_id TEXT NOT NULL,
+            team_id TEXT NOT NULL,
+            intent TEXT NOT NULL,
+            description TEXT NOT NULL,
+            task_note_ref TEXT,
+            playbook_status TEXT NOT NULL DEFAULT 'running',
+            stages_json TEXT NOT NULL,
+            current_stage_name TEXT NOT NULL,
+            metrics_json TEXT,
+            skip_plan INTEGER NOT NULL DEFAULT 0,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_playbook_team ON playbook_runs(team_id, playbook_status);
+        CREATE INDEX IF NOT EXISTS idx_playbook_pipeline ON playbook_runs(pipeline_run_id);
+    `);
 }
 
 export function getPlaybookRun(runId: string): PlaybookRun | null {

@@ -9,7 +9,7 @@ const app = new Hono();
 
 // POST /api/playbook/run
 app.post('/run', async (c) => {
-    const body = await c.req.json();
+    const body = await c.req.json().catch(() => ({})) as Record<string, any>;
     const {
         teamId, intent, description, taskNoteRef,
         skipPlan, includePlan,
@@ -52,10 +52,13 @@ app.post('/run', async (c) => {
             message: `Playbook '${intent}' started for team '${teamId}' (${stages.length} stages)`,
         });
     } catch (err: any) {
-        if (err.message.includes('not found') || err.message.includes('Unknown') || err.message.includes('validation')) {
-            return c.json({ error: err.message }, 400);
-        }
-        return c.json({ error: err.message }, 500);
+        log('ERROR', `Playbook run failed (team=${teamId} intent=${intent}): ${err.message}`);
+        const isClientError = err.message.includes('not found')
+            || err.message.includes('Unknown')
+            || err.message.includes('validation')
+            || err.message.includes('no stages remaining')
+            || err.message.includes('not found in agents config');
+        return c.json({ error: err.message }, isClientError ? 400 : 500);
     }
 });
 

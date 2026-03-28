@@ -28,6 +28,7 @@ import {
     hasPendingPipelineMessage,
     initGateDb, expireStaleGates,
     initPlaybookDb,
+    getPlaybookRunByPipelineId, updatePlaybookStatus,
 } from '@tinyagi/core';
 import { startApiServer } from '@tinyagi/server';
 import {
@@ -183,6 +184,10 @@ async function processMessage(dbMsg: any): Promise<void> {
         // Fail pipeline run if active
         if (pipelineRunId) {
             failPipelineRun(pipelineRunId, (error as Error).message);
+            const pbRunFail = getPlaybookRunByPipelineId(pipelineRunId);
+            if (pbRunFail) {
+                updatePlaybookStatus(pbRunFail.id, 'failed');
+            }
             const run = getPipelineRun(pipelineRunId);
             if (run) {
                 const stage = run.current_stage + 1;

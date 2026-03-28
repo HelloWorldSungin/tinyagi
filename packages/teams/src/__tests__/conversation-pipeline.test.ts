@@ -25,6 +25,7 @@ import fs from 'fs';
 import {
     initQueueDb, closeQueueDb,
     initPipelineDb, createPipelineRun, getPipelineRun,
+    initPlaybookDb,
 } from '@tinyagi/core';
 import type { TeamConfig, AgentConfig, MessageJobData } from '@tinyagi/core';
 import { handleTeamResponse } from '../conversation';
@@ -47,6 +48,7 @@ const agents: Record<string, AgentConfig> = {
 beforeAll(() => {
     initQueueDb();
     initPipelineDb();
+    initPlaybookDb();
 });
 
 afterAll(() => {
