@@ -280,13 +280,26 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         const command = pipelineMatch[2].toLowerCase();
         const body = pipelineMatch[3]?.trim() || '';
 
-        // Verify team is in pipeline mode
+        // Verify team exists and has pipeline capability (pipeline-mode OR active pipeline/playbook run)
         try {
             const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
             const settings = JSON.parse(settingsData);
             const team = settings.teams?.[teamId];
-            if (!team || team.mode !== 'pipeline') {
-                return false; // Not a pipeline team — pass through as normal message
+            if (!team) {
+                return false; // Team not found — pass through as normal message
+            }
+            // Allow pipeline commands for pipeline-mode teams OR teams with active pipeline/playbook runs
+            if (team.mode !== 'pipeline') {
+                // Check for active pipeline run
+                try {
+                    const statusRes = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+                    const statusData = await statusRes.json() as any;
+                    if (!statusData || statusData.error) {
+                        return false; // No active run, not a pipeline team — pass through
+                    }
+                } catch {
+                    return false;
+                }
             }
         } catch {
             return false;

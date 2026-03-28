@@ -78,7 +78,7 @@ export async function handleTeamResponse(params: {
     }
 
     // Pipeline mode — skip mention parsing AND chat room extraction
-    if (teamContext.team.mode === 'pipeline' && pipelineRunId) {
+    if (pipelineRunId) {
         const run = getPipelineRun(pipelineRunId);
         if (!run) {
             log('ERROR', `Pipeline run ${pipelineRunId} not found`);
