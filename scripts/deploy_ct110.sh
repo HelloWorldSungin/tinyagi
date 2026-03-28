@@ -117,8 +117,8 @@ ct_root "systemctl is-active tinyagi-queue tinyagi-discord tinyagi-office"
 
 # Step 8: Health check
 log "Running health check..."
-HEALTH=$(ct_exec "curl -s http://localhost:3778/api/agents | python3 -c \"import sys,json; agents=json.load(sys.stdin); print(f'{len(agents)} agents loaded')\"" 2>/dev/null || echo "FAILED")
-log "Health: ${HEALTH}"
+HEALTH=$(ssh root@${PROXMOX_HOST} "pct exec ${CT_ID} -- su - ${CT_USER} -c 'curl -s http://localhost:3778/api/agents | python3 -c \"import sys,json; print(len(json.load(sys.stdin)))\"'" 2>/dev/null || echo "0")
+log "Health: ${HEALTH} agents loaded"
 
 # Cleanup
 log "Cleaning up bundles..."
