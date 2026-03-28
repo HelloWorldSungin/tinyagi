@@ -1,0 +1,14 @@
+intent: review
+agents: [general]
+vault_output: [reviews]
+
+stages:
+  - name: full-review
+    agent: general
+    skills: [/ark-code-review --full]
+    on_failure: halt
+
+  - name: vault-sync
+    agent: general
+    skills: [/notebooklm-vault session]
+    on_failure: skip

@@ -1,0 +1,30 @@
+intent: feature
+agents: [plan, dev, general]
+vault_output: [plans, reviews, sessions]
+
+stages:
+  - name: brainstorm-and-spec
+    agent: plan
+    skills: [/brainstorming, /write-plan]
+    checkpoint: human-approval
+    checkpoint_hint: "Review the plan and spec before implementation begins"
+    on_failure: halt
+    skip_if: planned
+
+  - name: implement
+    agent: dev
+    skills: [/subagent-driven-development]
+    on_failure: halt
+
+  - name: self-review
+    agent: dev
+    skills: [/ark-code-review --quick]
+    on_failure: retry
+    max_retries: 1
+
+  - name: code-review
+    agent: general
+    skills: [/ark-code-review --thorough]
+    on_failure: halt
+
+  - $include: wrap-up

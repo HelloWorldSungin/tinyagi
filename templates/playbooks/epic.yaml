@@ -1,0 +1,25 @@
+intent: epic
+agents: [manager, plan, dev, general]
+vault_output: [epics, plans, reviews, sessions]
+
+stages:
+  - name: break-down-epic
+    agent: manager
+    skills: []
+    checkpoint: human-approval
+    checkpoint_hint: "Review story breakdown. Stories will be materialized as stages."
+    on_failure: halt
+    skip_if: planned
+
+  # v1.0: Epic stops at manager checkpoint. Stories executed as separate /run feature invocations.
+  # v1.1: Dynamic stage expansion will materialize story breakdown into concrete stages.
+
+  - name: epic-review
+    agent: general
+    skills: [/ark-code-review --epic]
+    on_failure: halt
+
+  - name: vault-sync
+    agent: general
+    skills: [/notebooklm-vault, /codebase-maintenance]
+    on_failure: skip

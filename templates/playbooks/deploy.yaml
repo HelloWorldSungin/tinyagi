@@ -1,0 +1,22 @@
+intent: deploy
+agents: [deploy]
+params: [environment]
+vault_output: [deployments]
+
+stages:
+  - name: deploy-to-staging
+    agent: deploy
+    skills: [/ship]
+    checkpoint: human-approval
+    checkpoint_hint: "Verify staging deployment before proceeding to monitoring"
+    on_failure: halt
+
+  - name: land-and-monitor
+    agent: deploy
+    skills: [/land-and-deploy, /canary]
+    on_failure: halt
+
+  - name: vault-sync
+    agent: deploy
+    skills: [/notebooklm-vault session]
+    on_failure: skip
