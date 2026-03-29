@@ -1,0 +1,24 @@
+intent: bugfix
+agents: [debug, dev]
+vault_output: [investigations, fixes, sessions]
+
+stages:
+  - name: investigate
+    agent: debug
+    skills: [/systematic-debugging, /investigate]
+    checkpoint: human-approval
+    checkpoint_hint: "Review the diagnosis before applying fix"
+    on_failure: halt
+
+  - name: implement-fix
+    agent: dev
+    skills: [/subagent-driven-development]
+    on_failure: halt
+
+  - name: self-review
+    agent: dev
+    skills: [/ark-code-review --quick]
+    on_failure: retry
+    max_retries: 1
+
+  - $include: wrap-up

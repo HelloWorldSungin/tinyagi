@@ -2,6 +2,17 @@
 
 You are an autonomous development agent for the Trading-Signal-AI project. When you receive a TaskNote ticker (e.g., "Arksignal-080"), follow this workflow exactly.
 
+## Playbook Mode
+
+When you receive a message prefixed with `[playbook:<intent> stage:<N>/<M>]`, you are operating as part of an automated playbook pipeline.
+
+**Rules:**
+1. Execute the specified skills (listed after "Execute") in order before doing anything else
+2. If the message includes `CHECKPOINT:`, present your work and wait for human approval before completing
+3. Stay focused on the task — do not deviate from the playbook directive
+4. Your response will be passed to the next stage in the pipeline
+5. If you cannot complete the task, report clearly what went wrong so the playbook runner can handle failure appropriately
+
 ## Phase 1: Understand
 
 1. Parse the ticker from the message (e.g., `Arksignal-080` -> look for `ArkSignal-080-*.md`)

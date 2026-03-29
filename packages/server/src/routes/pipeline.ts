@@ -12,8 +12,15 @@ app.get('/api/pipeline/:teamId/status', (c) => {
     const teamId = c.req.param('teamId');
     const teams = getTeams(getSettings());
     const team = teams[teamId];
-    if (!team || team.mode !== 'pipeline') {
-        return c.json({ error: `Team '${teamId}' is not a pipeline-mode team` }, 400);
+    if (!team) {
+        return c.json({ error: `Team '${teamId}' not found` }, 400);
+    }
+    // Allow pipeline operations for pipeline-mode teams OR teams with active pipeline runs
+    if (team.mode !== 'pipeline') {
+        const run = getActivePipelineRun(teamId) || getFailedPipelineRun(teamId) || getMostRecentRun(teamId);
+        if (!run) {
+            return c.json({ error: `Team '${teamId}' has no active pipeline runs` }, 400);
+        }
     }
 
     // Check active first, then most recent
@@ -50,8 +57,15 @@ app.post('/api/pipeline/:teamId/retry', async (c) => {
     const teamId = c.req.param('teamId');
     const teams = getTeams(getSettings());
     const team = teams[teamId];
-    if (!team || team.mode !== 'pipeline') {
-        return c.json({ error: `Team '${teamId}' is not a pipeline-mode team` }, 400);
+    if (!team) {
+        return c.json({ error: `Team '${teamId}' not found` }, 400);
+    }
+    // Allow pipeline operations for pipeline-mode teams OR teams with active pipeline runs
+    if (team.mode !== 'pipeline') {
+        const run = getActivePipelineRun(teamId) || getFailedPipelineRun(teamId) || getMostRecentRun(teamId);
+        if (!run) {
+            return c.json({ error: `Team '${teamId}' has no active pipeline runs` }, 400);
+        }
     }
 
     const body = await c.req.json().catch(() => ({})) as {
@@ -105,8 +119,15 @@ app.post('/api/pipeline/:teamId/restart', async (c) => {
     const teamId = c.req.param('teamId');
     const teams = getTeams(getSettings());
     const team = teams[teamId];
-    if (!team || team.mode !== 'pipeline') {
-        return c.json({ error: `Team '${teamId}' is not a pipeline-mode team` }, 400);
+    if (!team) {
+        return c.json({ error: `Team '${teamId}' not found` }, 400);
+    }
+    // Allow pipeline operations for pipeline-mode teams OR teams with active pipeline runs
+    if (team.mode !== 'pipeline') {
+        const run = getActivePipelineRun(teamId) || getFailedPipelineRun(teamId) || getMostRecentRun(teamId);
+        if (!run) {
+            return c.json({ error: `Team '${teamId}' has no active pipeline runs` }, 400);
+        }
     }
     if (!team.pipeline || team.pipeline.length === 0) {
         return c.json({ error: `Team '${teamId}' has no pipeline configured` }, 400);

@@ -2,6 +2,17 @@
 
 You are a debug agent for the ArkNode-Poly project. When you receive a bug ticket (e.g., "ArkPoly-044"), follow this workflow to investigate, fix, and verify.
 
+## Playbook Mode
+
+When you receive a message prefixed with `[playbook:<intent> stage:<N>/<M>]`, you are operating as part of an automated playbook pipeline.
+
+**Rules:**
+1. Execute the specified skills (listed after "Execute") in order before doing anything else
+2. If the message includes `CHECKPOINT:`, present your work and wait for human approval before completing
+3. Stay focused on the task — do not deviate from the playbook directive
+4. Your response will be passed to the next stage in the pipeline
+5. If you cannot complete the task, report clearly what went wrong so the playbook runner can handle failure appropriately
+
 ## Before Reading the Vault
 
 Always pull the latest repo before reading TaskNotes:

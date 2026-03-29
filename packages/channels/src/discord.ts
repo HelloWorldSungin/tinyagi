@@ -273,6 +273,57 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         return true;
     }
 
+    // Playbook /run command: @team_id /run intent description [--skip-plan] [--include-plan]
+    const runMatch = content.match(/^@(\S+)\s+[!/]run\s+(\S+)(?:\s+([\s\S]*))?$/i);
+    if (runMatch) {
+        const teamId = runMatch[1];
+        const intent = runMatch[2];
+        let rest = runMatch[3]?.trim() || '';
+
+        // Parse flags
+        const skipPlan = rest.includes('--skip-plan');
+        const includePlan = rest.includes('--include-plan');
+        rest = rest.replace(/--skip-plan/g, '').replace(/--include-plan/g, '').trim();
+
+        // Check if the rest looks like a TaskNote reference (e.g., ArkPoly-085)
+        const taskNoteMatch = rest.match(/^(Ark\w+-\d+)(?:\s+(.*))?$/i);
+        const taskNoteRef = taskNoteMatch ? taskNoteMatch[1] : undefined;
+        const description = taskNoteMatch
+            ? (taskNoteMatch[2]?.trim() || `Implement ${taskNoteMatch[1]}`)
+            : rest;
+
+        log('INFO', `Playbook /run command: @${teamId} intent=${intent}`);
+
+        try {
+            const res = await fetch(`${API_BASE}/api/playbook/run`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    teamId,
+                    intent,
+                    description: description || intent,
+                    taskNoteRef,
+                    skipPlan,
+                    includePlan,
+                    channel: 'discord',
+                    sender: message.author.username,
+                    senderId: message.author.id,
+                    messageId: message.id,
+                }),
+            });
+            const data = await res.json() as any;
+            if (res.ok) {
+                await message.reply(`\u{1F680} ${data.message}`);
+            } else {
+                await message.reply(`\u274C Playbook error: ${data.error}`);
+            }
+        } catch (err) {
+            log('ERROR', `Playbook run error: ${(err as Error).message}`);
+            await message.reply('Could not start playbook run. Is the queue processor running?');
+        }
+        return true;
+    }
+
     // Pipeline commands: @team_id /retry|restart|status
     const pipelineMatch = content.match(/^@(\S+)\s+[!/](retry|restart|status)(?:\s+([\s\S]*))?$/i);
     if (pipelineMatch) {
@@ -280,15 +331,29 @@ async function handleTextCommand(message: Message): Promise<boolean> {
         const command = pipelineMatch[2].toLowerCase();
         const body = pipelineMatch[3]?.trim() || '';
 
-        // Verify team is in pipeline mode
+        // Verify team exists and has pipeline capability (pipeline-mode OR active pipeline/playbook run)
         try {
             const settingsData = fs.readFileSync(SETTINGS_FILE, 'utf8');
             const settings = JSON.parse(settingsData);
             const team = settings.teams?.[teamId];
-            if (!team || team.mode !== 'pipeline') {
-                return false; // Not a pipeline team — pass through as normal message
+            if (!team) {
+                return false; // Team not found — pass through as normal message
             }
-        } catch {
+            // Allow pipeline commands for pipeline-mode teams OR teams with active pipeline/playbook runs
+            if (team.mode !== 'pipeline') {
+                // Check for active pipeline run
+                try {
+                    const statusRes = await fetch(`${API_BASE}/api/pipeline/${teamId}/status`);
+                    const statusData = await statusRes.json() as any;
+                    if (!statusData || statusData.error) {
+                        return false; // No active run, not a pipeline team — pass through
+                    }
+                } catch {
+                    return false;
+                }
+            }
+        } catch (err) {
+            log('WARN', `Pipeline pre-flight check failed for team ${teamId}: ${(err as Error).message}`);
             return false;
         }
 

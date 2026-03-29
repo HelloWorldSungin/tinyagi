@@ -5,6 +5,7 @@ import {
     enqueueMessage, genId,
     getPipelineRun, advancePipelineStage, completePipelineRun,
     streamResponse,
+    getPlaybookRunByPipelineId, updatePlaybookStage, updatePlaybookStatus,
 } from '@tinyagi/core';
 import { convertTagsToReadable, extractTeammateMentions, extractChatRoomMessages } from './routing';
 
@@ -78,7 +79,7 @@ export async function handleTeamResponse(params: {
     }
 
     // Pipeline mode — skip mention parsing AND chat room extraction
-    if (teamContext.team.mode === 'pipeline' && pipelineRunId) {
+    if (pipelineRunId) {
         const run = getPipelineRun(pipelineRunId);
         if (!run) {
             log('ERROR', `Pipeline run ${pipelineRunId} not found`);
@@ -91,6 +92,10 @@ export async function handleTeamResponse(params: {
 
         if (isLastStage) {
             completePipelineRun(run.id, response);
+            const pbRunComplete = getPlaybookRunByPipelineId(pipelineRunId);
+            if (pbRunComplete) {
+                updatePlaybookStatus(pbRunComplete.id, 'completed');
+            }
             log('INFO', `Pipeline ${run.id} completed (${total}/${total} stages)`);
 
             const notification = `Pipeline complete (${total}/${total} stages). All stages finished successfully.`;
@@ -104,6 +109,15 @@ export async function handleTeamResponse(params: {
             });
         } else {
             advancePipelineStage(run.id, response);
+            // Update playbook stage tracking if this is a playbook run
+            const pbRun = getPlaybookRunByPipelineId(pipelineRunId);
+            if (pbRun) {
+                const stages = JSON.parse(pbRun.stages_json) as Array<{ name: string }>;
+                const nextStageIndex = run.current_stage + 1;
+                if (nextStageIndex < stages.length) {
+                    updatePlaybookStage(pbRun.id, stages[nextStageIndex].name);
+                }
+            }
             const nextStage = run.current_stage + 1;
             const nextAgentId = pipeline[nextStage];
 

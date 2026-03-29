@@ -1,0 +1,13 @@
+# Shared stage groups included by playbooks via the $include convention.
+# The playbook parser resolves $include references to these stage groups.
+
+wrap-up:
+  - name: vault-sync
+    agent: dev
+    skills: [/notebooklm-vault session, /codebase-maintenance]
+    on_failure: skip
+
+  - name: pr-creation
+    agent: dev
+    skills: []
+    on_failure: halt

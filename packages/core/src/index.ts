@@ -20,4 +20,5 @@ export * from './memory';
 export * from './ids';
 export * from './schedules';
 export * from './pipeline';
+export * from './playbook';
 export * from './gate';

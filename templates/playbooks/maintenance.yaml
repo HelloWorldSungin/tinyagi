@@ -1,0 +1,19 @@
+intent: maintenance
+agents: [general]
+vault_output: [maintenance, sessions]
+
+stages:
+  - name: maintenance-sweep
+    agent: general
+    skills: [/codebase-maintenance]
+    on_failure: halt
+
+  - name: vault-sync
+    agent: general
+    skills: [/notebooklm-vault sync]
+    on_failure: skip
+
+  - name: security-check
+    agent: general
+    skills: [/cso]
+    on_failure: halt
